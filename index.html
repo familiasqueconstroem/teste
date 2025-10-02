@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-t" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Tijolômetro</title>
 <style>
@@ -25,7 +25,7 @@ body{
   background:var(--bg); color:#111; display:flex; align-items:center; justify-content:center; padding:12px;
 }
 
-/* NOVO: Animação de entrada suave */
+/* Animação de entrada suave */
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.98); }
   to { opacity: 1; transform: scale(1); }
@@ -35,7 +35,7 @@ body{
   width:min(var(--panel-max-width),98vw);
   background:#fff; border-radius:20px; box-shadow:0 8px 30px rgba(0,0,0,.08);
   padding:16px; display:flex; flex-direction:column; gap:16px;
-  animation: fadeIn 0.6s ease-out forwards; /* APLICAÇÃO DA ANIMAÇÃO */
+  animation: fadeIn 0.6s ease-out forwards;
 }
 .gauge{
   position:relative; width:100%;
@@ -63,10 +63,10 @@ body{
 .brick{
   position:absolute; background:var(--grout); border-radius:2px; overflow:hidden;
   box-shadow: inset 0 0 0 var(--joint) var(--grid);
-  transition: transform 0.2s ease; /* NOVO: Transição para hover */
+  transition: transform 0.2s ease;
 }
 
-/* NOVO: Efeito de hover interativo */
+/* Efeito de hover interativo */
 .brick:hover {
     transform: scale(1.1);
     z-index: 10;
@@ -74,7 +74,7 @@ body{
 
 .brick .fill{
   position:absolute; inset:0; width:0%; height:100%;
-  /* MELHORIA: Gradiente e sombra para textura e profundidade */
+  /* Textura com gradiente e sombra para profundidade */
   background: linear-gradient(145deg, hsl(14, 45%, 48%), hsl(14, 45%, 40%));
   box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
   transition:width .35s ease;
@@ -248,9 +248,11 @@ body{
     }
   }
 
+  /* SUA LÓGICA DE LAYOUT OTIMIZADA APLICADA AQUI */
   function layoutBricks(){
     ensureAspectFromLogo();
     const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
+
     if (CONFIG.brickPx && CONFIG.brickPx > 0) {
       const brickWtarget = CONFIG.brickPx;
       const brickHtarget = Math.round(brickWtarget * 0.6);
@@ -259,33 +261,51 @@ body{
     } else {
       effCols = CONFIG.cols; effRows = CONFIG.rows;
     }
+    
     const gap = CONFIG.gap, cols = effCols, rows = effRows;
-    const brickW = Math.floor((W - gap) / cols) - gap;
+
+    let brickW = Math.floor((W - gap) / cols) - gap;
+    let offset = Math.floor(brickW / 2);
+    brickW = Math.floor((W - gap - offset) / cols) - gap;
+    offset = Math.floor(brickW / 2);
+
     const brickH = Math.floor((H - gap) / rows) - gap;
+
+    const gridWEven = cols * brickW + (cols + 1) * gap;
+    const gridWOdd  = gridWEven + offset;
+    const gridWMax  = Math.max(gridWEven, gridWOdd);
+    const startXBase = Math.max(gap, Math.floor((W - gridWMax) / 2) + gap);
+
     const total = rows * cols;
-    if(bricksFg.length !== total){
-      bricksFgEl.innerHTML=''; bricksBgEl.innerHTML='';
-      bricksFg=[]; bricksBg=[];
-      const fragFg=document.createDocumentFragment(), fragBg=document.createDocumentFragment();
-      for(let i=0;i<total;i++){
-        const elF=document.createElement('div'); elF.className='brick';
-        const fF=document.createElement('div'); fF.className='fill'; elF.appendChild(fF);
+    if (bricksFg.length !== total){
+      bricksFgEl.innerHTML = ''; bricksBgEl.innerHTML = '';
+      bricksFg = []; bricksBg = [];
+      const fragFg = document.createDocumentFragment();
+      const fragBg = document.createDocumentFragment();
+      for (let i=0;i<total;i++){
+        const elF = document.createElement('div'); elF.className='brick';
+        elF.appendChild(document.createElement('div')).className='fill';
         fragFg.appendChild(elF); bricksFg.push(elF);
-        const elB=document.createElement('div'); elB.className='brick';
-        const fB=document.createElement('div'); fB.className='fill'; elB.appendChild(fB);
+
+        const elB = document.createElement('div'); elB.className='brick';
+        elB.appendChild(document.createElement('div')).className='fill';
         fragBg.appendChild(elB); bricksBg.push(elB);
       }
-      bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
+      bricksFgEl.appendChild(fragFg);
+      bricksBgEl.appendChild(fragBg);
     }
-    let idx=0;
-    for(let r=0;r<rows;r++){
-      const offset = (r%2===1) ? Math.floor(brickW/2) : 0;
-      for(let c=0;c<cols;c++){
-        const x = gap + c*(brickW+gap) + offset;
-        const y = gap + r*(brickH+gap);
-        const bFg = bricksFg[idx]; bFg.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
-        bFg._x=x; bFg._y=y; bFg._w=brickW; bFg._h=brickH;
-        const bBg = bricksBg[idx]; bBg.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
+
+    let idx = 0;
+    for (let r=0;r<rows;r++){
+      const startX = startXBase + (r % 2 ? offset : 0);
+      for (let c=0;c<cols;c++){
+        const x = startX + c * (brickW + gap);
+        const y = gap + r * (brickH + gap);
+        const bFg = bricksFg[idx];
+        bFg.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
+        bFg._x = x; bFg._y = y; bFg._w = brickW; bFg._h = brickH;
+        const bBg = bricksBg[idx];
+        bBg.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
         idx++;
       }
     }
@@ -311,8 +331,7 @@ body{
     for(let i=0;i<total;i++){
       const fF=orderFg[i].querySelector('.fill'), fB=orderBg[i].querySelector('.fill');
       
-      // MELHORIA: Animação escalonada
-      const delay = i * 2; // Atraso de 2ms por tijolo
+      const delay = i * 2;
       fF.style.transitionDelay = `${delay}ms`;
       fB.style.transitionDelay = `${delay}ms`;
       
@@ -349,34 +368,4 @@ body{
     try{
       const res=await fetch(`${base}?${params}`,{ cache:'no-store' });
       const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
-      const data=JSON.parse(m[1]); const rows=data.table.rows||[]; const kv={};
-      rows.forEach(r=>{
-        const k=r.c?.[0]?.v?.toString().trim().toLowerCase();
-        const vRaw=r.c?.[1]?.v;
-        const v=typeof vRaw==='string'?parseFloat(vRaw.replace(/\./g,'').replace(',','.')):vRaw;
-        if(k) kv[k]=Number(v||0);
-      });
-      const goal=Number(kv[CONFIG.goalField]||0);
-      const raised=Number(kv[CONFIG.raisedField]||0);
-      const p=goal>0?raised/goal:0;
-      applyProgress(p);
-      hud.raised.textContent=formatBRL(raised);
-      hud.goal.textContent  =formatBRL(goal);
-      hud.pct.textContent   =Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',')+'%';
-      hud.updated.textContent='Atualizado: '+new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
-    }catch(e){
-      console.error(e);
-      if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; }
-    }
-  }
-
-  window.addEventListener('resize', debounce(()=>{ layoutBricks(); }, 120));
-  window.addEventListener('orientationchange', ()=>{ setTimeout(()=>layoutBricks(), 150); });
-
-  loadLogo(CONFIG.logo).then(()=>{ ensureAspectFromLogo(); layoutBricks(); });
-  fetchProgress(); setInterval(fetchProgress, CONFIG.pollMs);
-})();
-</script>
-</body>
-</html>
+      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\
