@@ -6,16 +6,17 @@
 <title>Tijolômetro</title>
 <style>
 :root{
-  /* Cores base */
-  --grout:#EFE6DF;
+  /* Visual base */
+  --bg:#FFFAF5;
+  --grout:#E5DBD1;   /* cimento um pouco mais escuro p/ contraste */
   --grid:#CDBFB3;
-  --brick-bg-color: #a35a41;
+  --brick-bg-color:#a35a41; /* cor do “tijolo de fundo” (área vazada) */
 
   /* Layout */
-  --bg:#FFFAF5;
-  --pad:0px;
-  --joint:1.2px;
-  --panel-max-width: 1600px;
+  --pad:0px;         /* margem interna do logo (0 = máximo) */
+  --joint:0.8px;     /* espessura da junta */
+  --ghost:0.12;      /* opacidade da imagem-fantasma (ajustável via ?ghost=0.18) */
+  --panel-max-width:1600px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -24,54 +25,60 @@ body{
   background:var(--bg); color:#111; display:flex; align-items:center; justify-content:center; padding:12px;
 }
 .panel{
-  width:min(var(--panel-max-width), 98vw);
+  width:min(var(--panel-max-width),98vw);
   background:#fff; border-radius:20px; box-shadow:0 8px 30px rgba(0,0,0,.08);
-  padding:16px; display: flex; flex-direction: column; gap: 16px;
+  padding:16px; display:flex; flex-direction:column; gap:16px;
 }
 .gauge{
   position:relative; width:100%;
-  aspect-ratio: 2 / 1;
-  border-radius:14px; overflow:hidden; background:var(--grout);
+  /* sem aspect-ratio fixo aqui -> JS define pelo logo para evitar distorção */
+  border-radius:14px; overflow:hidden; background:#F7EFE7;
+  min-height: 300px; /* evita “sumir” enquanto o logo carrega */
 }
 
+/* 1) Imagem-fantasma (referência visual) */
+.ghost-logo{
+  position:absolute; inset:var(--pad);
+  width:calc(100% - (var(--pad) * 2)); height:calc(100% - (var(--pad) * 2));
+  margin:auto; object-fit:contain; opacity:var(--ghost);
+  filter:grayscale(1) sepia(1) brightness(1.5);
+}
+
+/* 2) Tijolos de fundo (área vazada) */
+.bricks-bg{ position:absolute; inset:0; }
+
+/* 3) Tijolos da frente (recortados pelo logo) */
 .mask-layer{
-  position:absolute; inset:0;
-  --mask:url('logo.png');
+  position:absolute; inset:0; background:transparent;
+  --mask:url('logo.png'); /* será substituída via JS após carregar o logo */
   -webkit-mask-image:var(--mask);   mask-image:var(--mask);
   -webkit-mask-repeat:no-repeat;    mask-repeat:no-repeat;
   -webkit-mask-position:center;     mask-position:center;
   -webkit-mask-size:contain;        mask-size:contain;
-
-  /* Efeito de contorno de luz para máximo destaque do logo */
-  filter: drop-shadow(0 0 4px rgba(255,255,255,0.7)) 
-          drop-shadow(0 0 2px rgba(255,255,255,0.8));
 }
 
 .bricks{ position:relative; width:100%; height:100% }
 .brick{
-  position:absolute; background:transparent;
-  border-radius:2px; overflow:hidden;
+  position:absolute; background:var(--grout); border-radius:2px; overflow:hidden;
   box-shadow: inset 0 0 0 var(--joint) var(--grid);
 }
 .brick .fill{
   position:absolute; inset:0; width:0%; height:100%;
-  background:var(--grout);
-  transition:width .35s ease;
+  background:var(--brick-bg-color); transition:width .35s ease;
 }
 .brick.filled .fill{ width:100% }
 
+/* HUD abaixo do painel para não cobrir o logo */
 .hud{
-  display: flex; flex-direction: row; flex-wrap: wrap; justify-content: space-around;
-  gap: 10px 20px; padding: 10px; border: 1px solid #eee; border-radius: 12px;
-  background: #fdfdfd; font-variant-numeric: tabular-nums;
+  display:flex; flex-direction:row; flex-wrap:wrap; justify-content:space-around;
+  gap:10px 20px; padding:10px; border:1px solid #eee; border-radius:12px;
+  background:#fdfdfd; font-variant-numeric:tabular-nums;
 }
-.hud b{ font-size:20px }
-.hud .pct{ font-weight:700 }
-.hud > div { text-align: center; }
+.hud b{ font-size:20px } .hud .pct{ font-weight:700 } .hud>div{text-align:center}
 
 .alert{
   position:absolute; left:14px; top:14px; background:#fff3cd; border:1px solid #ffe69c; color:#664d03;
-  padding:8px 10px; border-radius:10px; font-size:12px; display:none; z-index: 5;
+  padding:8px 10px; border-radius:10px; font-size:12px; display:none
 }
 .alert b{ display:block; margin-bottom:4px }
 </style>
@@ -79,10 +86,15 @@ body{
 <body>
   <div class="panel">
     <div class="gauge" id="gauge">
-      <div class="alert" id="logoAlert"><b>Logo não carregou.</b> Verifique o link no código ou a permissão do arquivo.</div>
-      
-      <div class="mask-layer">
-        <div class="bricks" id="bricks"></div>
+      <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique o arquivo.</div>
+
+      <!-- fantasma (src definido após carregar o logo) -->
+      <img class="ghost-logo" id="ghostLogo" alt="logo" />
+
+      <div class="bricks-bg" id="bricksBg"></div>
+
+      <div class="mask-layer" id="mask">
+        <div class="bricks" id="bricksFg"></div>
       </div>
     </div>
 
@@ -96,212 +108,295 @@ body{
 
 <script>
 (function(){
+  /* ============== Parâmetros ============== */
   const qs = new URLSearchParams(location.search);
   const CONFIG = {
-    // --- Configuração Fixa para Máxima Compatibilidade ---
-    sheetId:  '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY',
-    logo: 'https://drive.google.com/uc?export=view&id=1DLQYFu3GsrbYLEtYr9wtfNTqFXJRqldc',
-
-    // --- Configurações Adicionais (podem ser sobrescritas por URL, se necessário) ---
+    // Planilha
+    sheetId:  qs.get('sheet_id') || '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY',
     sheetName:qs.get('sheet')    || 'Tijolometro',
     range:    qs.get('range')    || 'A1:B2',
     goalField:  qs.get('goal_field')   || 'meta',
     raisedField:qs.get('raised_field') || 'arrecadado',
-    cols: parseInt(qs.get('cols') || '80', 10),
-    rows: parseInt(qs.get('rows') || '48',  10),
+    mode: qs.get('mode') || 'sum',             // 'sum' (meta/alcançado) ou 'pct'
+    pctRange: qs.get('pct_range') || 'A1',     // usado se mode='pct'
+
+    // Logo
+    logo: qs.get('logo') || 'logo.png',
+
+    // Tijolos (você pode usar cols/rows OU brick_px)
+    cols: parseInt(qs.get('cols') || '120', 10),
+    rows: parseInt(qs.get('rows') || '72',  10),
+    brickPx: parseInt(qs.get('brick_px') || '0', 10), // 0 = desativado; ex.: 12 define auto cols/rows
     gap: 1,
+
+    // Aparência
     pollMs: parseInt(qs.get('poll_ms') || '30000', 10),
     pad: qs.get('pad') != null ? parseInt(qs.get('pad'),10) : 0,
+    grout: qs.get('grout') || '',
+    joint: qs.get('joint') || '',
+    ghost: qs.get('ghost') || '',
+
+    // Paleta (brand3 por padrão)
+    palette: qs.get('palette') || 'brand3'
   };
 
-  if (!Number.isNaN(CONFIG.pad)) { document.documentElement.style.setProperty('--pad', CONFIG.pad + 'px'); }
-  document.querySelector('.mask-layer').style.setProperty('--mask', `url('${CONFIG.logo}')`);
+  // CSS dinâmico
+  if (!Number.isNaN(CONFIG.pad)) document.documentElement.style.setProperty('--pad', CONFIG.pad + 'px');
+  if (CONFIG.grout) document.documentElement.style.setProperty('--grout', CONFIG.grout);
+  if (CONFIG.joint) document.documentElement.style.setProperty('--joint', CONFIG.joint + 'px');
+  if (CONFIG.ghost) document.documentElement.style.setProperty('--ghost', CONFIG.ghost);
 
+  /* ============== Elementos ============== */
   const gauge = document.getElementById('gauge');
-  const bricksEl = document.getElementById('bricks');
-  const hud = { raised: document.getElementById('hudRaised'), goal: document.getElementById('hudGoal'), pct: document.getElementById('hudPct'), updated: document.getElementById('hudUpdated') };
+  const maskEl = document.getElementById('mask');
+  const ghostEl = document.getElementById('ghostLogo');
+  const bricksFgEl = document.getElementById('bricksFg');
+  const bricksBgEl = document.getElementById('bricksBg');
   const alertBox = document.getElementById('logoAlert');
 
+  const hud = {
+    raised: document.getElementById('hudRaised'),
+    goal: document.getElementById('hudGoal'),
+    pct: document.getElementById('hudPct'),
+    updated: document.getElementById('hudUpdated')
+  };
+
+  /* ============== Estado ============== */
   const paintCanvas = document.createElement('canvas');
   const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
   let logoImg = null, aspectSet = false;
-  let bricks = [];
+  let bricksFg = [], bricksBg = [];
   let lastProgress = 0;
+  let effCols = CONFIG.cols, effRows = CONFIG.rows;
 
-  // Funções de aprimoramento de cor para garantir a vibração do logo
-  function rgbToHsl(r, g, b) { r /= 255; g /= 255; b /= 255; const max = Math.max(r, g, b), min = Math.min(r, g, b); let h, s, l = (max + min) / 2; if (max === min) { h = s = 0; } else { const d = max - min; s = l > 0.5 ? d / (2 - max - min) : d / (max + min); switch (max) { case r: h = (g - b) / d + (g < b ? 6 : 0); break; case g: h = (b - r) / d + 2; break; case b: h = (r - g) / d + 4; break; } h /= 6; } return [h, s, l]; }
-  function hslToRgb(h, s, l) { let r, g, b; if (s === 0) { r = g = b = l; } else { const hue2rgb = (p, q, t) => { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1/6) return p + (q - p) * 6 * t; if (t < 1/2) return q; if (t < 2/3) return p + (q - p) * (2/3 - t) * 6; return p; }; const q = l < 0.5 ? l * (1 + s) : l + s - l * s; const p = 2 * l - q; r = hue2rgb(p, q, h + 1/3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1/3); } return [Math.round(r*255), Math.round(g*255), Math.round(b*255)]; }
-  function boostColor(r, g, b) { const [h, s, l] = rgbToHsl(r, g, b); const newS = Math.min(1, s * 1.5); const newL = l < 0.5 ? l * 0.95 : l * 1.05; const [newR, newG, newB] = hslToRgb(h, newS, newL); return `rgb(${newR}, ${newG}, ${newB})`; }
-
-  function formatBRL(n){ try{ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n); } catch(e){ return ''; } }
+  /* ============== Utilidades ============== */
+  function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
+  function formatBRL(n){ try{ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
-  
+
   function loadLogo(src){
-    return new Promise(res=>{
+    return new Promise((resolve)=>{
       const im = new Image();
-      im.crossOrigin = "Anonymous"; // Essencial para carregar imagens de outros domínios (como Google Drive) no canvas
-      im.onload = ()=>{ logoImg = im; res(true); };
-      im.onerror = ()=>{ alertBox.style.display='block'; res(false); };
-      im.src = src + '&t=' + Date.now(); // Adiciona timestamp para evitar cache
+      im.onload = ()=>{ logoImg=im; ghostEl.src=im.src; setMaskImage(im.src); alertBox.style.display='none'; resolve(true); };
+      im.onerror = ()=>{ alertBox.style.display='block'; resolve(false); };
+      im.src = src + (src.includes('?') ? '&' : '?') + 't=' + Date.now();
     });
   }
 
   function ensureAspectFromLogo(){
     if(aspectSet || !logoImg) return;
     const ar = logoImg.naturalWidth / logoImg.naturalHeight;
-    if(ar > 0) gauge.style.aspectRatio = `${ar} / 1`;
+    if(ar>0) gauge.style.aspectRatio = `${ar} / 1`;
     aspectSet = true;
   }
-  
-  function getAverageColor(x, y, w, h) {
-    try {
-      const imgData = pctx.getImageData(x, y, w, h).data;
-      let r = 0, g = 0, b = 0, count = 0;
-      for (let i = 0; i < imgData.length; i += 4) {
-        if (imgData[i + 3] > 128) {
-          r += imgData[i]; g += imgData[i + 1]; b += imgData[i + 2];
-          count++;
-        }
-      }
-      if (count < (w*h) * 0.2) return null;
-      const avgR = Math.round(r/count), avgG = Math.round(g/count), avgB = Math.round(b/count);
-      return boostColor(avgR, avgG, avgB);
-    } catch (e) {
-      console.error("Erro ao ler dados do canvas. A imagem do logo pode não estar carregando corretamente devido a restrições de CORS.", e);
-      alertBox.innerHTML = '<b>Erro ao carregar o logo.</b> Verifique se o link da imagem é direto e tem permissão de acesso público (CORS).';
-      alertBox.style.display = 'block';
-      return null;
-    }
+
+  /* ======= Paletas ======= */
+  const PALETTES = {
+    brand2: ['#0A4AA6', '#F2C035'],                   // opcional
+    brand3: ['#0A4AA6', '#F2C035', '#8B1E1E'],        // AZUL, AMARELO, VERMELHO-TIJOLO
+  };
+  function hexToRgb(hex){ const n=parseInt(hex.replace('#',''),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+  function dist2(c1,c2){ const dr=c1.r-c2.r,dg=c1.g-c2.g,db=c1.b-c2.b; return dr*dr+dg*dg+db*db; }
+  function mapToPalette(r,g,b, name){
+    const set = PALETTES[name]; if(!set) return `rgb(${r},${g},${b})`;
+    let best=set[0], bestD=Infinity, c1={r,g,b};
+    for(const h of set){ const c2=hexToRgb(h); const d=dist2(c1,c2); if(d<bestD){bestD=d; best=h;} }
+    return best;
   }
+
+  /* ======= Amostragem robusta (mediana de 9 pontos) usando buffer ======= */
+  function makeSampler(data, W, H){
+    return function px(x,y){
+      const xi = Math.max(0, Math.min(W-1, Math.round(x)));
+      const yi = Math.max(0, Math.min(H-1, Math.round(y)));
+      const i = (yi*W + xi) * 4;
+      return [data[i], data[i+1], data[i+2], data[i+3]];
+    };
+  }
+  function median(a){ const b=a.slice().sort((m,n)=>m-n); return b[Math.floor(b.length/2)]; }
 
   function colorizeBricks(){
     if(!logoImg) return;
-    const W = bricksEl.clientWidth, H = bricksEl.clientHeight;
-    if(!W || !H) return;
+    const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
 
-    paintCanvas.width = W; paintCanvas.height = H;
-    pctx.clearRect(0,0,W,H);
+    paintCanvas.width=W; paintCanvas.height=H; pctx.clearRect(0,0,W,H);
+
     const ar = logoImg.naturalWidth / logoImg.naturalHeight;
-    let dw = W, dh = W/ar; if(dh > H){ dh = H; dw = H*ar; }
-    const dx = (W - dw)/2, dy = (H - dh)/2;
+    let dw=W, dh=W/ar; if(dh>H){ dh=H; dw=H*ar; }
+    const dx=(W-dw)/2, dy=(H-dh)/2;
     pctx.drawImage(logoImg, dx, dy, dw, dh);
-    
-    for(const b of bricks){
-      const color = getAverageColor(b._x, b._y, b._w, b._h);
-      const fillEl = b.querySelector('.fill');
-      if(color){
-        fillEl.style.background = color;
+
+    const buf = pctx.getImageData(0,0,W,H).data;
+    const samp = makeSampler(buf, W, H);
+
+    for(let i=0;i<bricksFg.length;i++){
+      const bFg = bricksFg[i], bBg = bricksBg[i];
+      const x=bFg._x, y=bFg._y, w=bFg._w, h=bFg._h;
+
+      const pts = [
+        [x+w/2, y+h/2],
+        [x+1,   y+1], [x+w-2, y+1], [x+1, y+h-2], [x+w-2, y+h-2],
+        [x+w/2, y+1], [x+w/2, y+h-2], [x+1, y+h/2], [x+w-2, y+h/2]
+      ];
+      const rs=[], gs=[], bs=[], as=[];
+      for(const [px,py] of pts){ const d=samp(px,py); rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]); }
+      const A = median(as);
+
+      const fgFill = bFg.querySelector('.fill');
+      const bgFill = bBg.querySelector('.fill');
+
+      if (A < 100){ // pouco conteúdo do logo → trata como “vazio”
+        fgFill.style.background='transparent';
+        bgFill.style.opacity='1';
       } else {
-        fillEl.style.background = 'var(--brick-bg-color)';
+        const r=median(rs), g=median(gs), b=median(bs);
+        const mapped = mapToPalette(r,g,b, CONFIG.palette); // trava nas cores oficiais
+        fgFill.style.background = mapped;
+        bgFill.style.opacity='0';
       }
     }
   }
 
+  /* ======= Grid de tijolos ======= */
   function layoutBricks(){
     ensureAspectFromLogo();
-    const W = bricksEl.clientWidth, H = bricksEl.clientHeight; if(!W || !H) return;
-    const { gap, cols, rows } = CONFIG;
-    const brickW = Math.floor((W - gap*2) / cols) - gap;
-    const brickH = Math.floor((H - gap*2) / rows) - gap;
-    const target = rows * cols;
+    const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
 
-    if(bricks.length !== target){
-      bricksEl.innerHTML = ''; bricks = [];
-      const frag = document.createDocumentFragment();
-      for(let i=0;i<target;i++){
-        const el = document.createElement('div'); el.className='brick';
-        const fill = document.createElement('div'); fill.className='fill'; el.appendChild(fill);
-        frag.appendChild(el); bricks.push(el);
-      }
-      bricksEl.appendChild(frag);
+    // Modo “tamanho alvo” → calcula cols/rows para caber bem na tela
+    if (CONFIG.brickPx && CONFIG.brickPx > 0) {
+      const brickWtarget = CONFIG.brickPx;
+      const brickHtarget = Math.round(brickWtarget * 0.6); // proporção visual de tijolo
+      effCols = Math.max(20, Math.floor((W - CONFIG.gap) / (brickWtarget + CONFIG.gap)));
+      effRows = Math.max(12, Math.floor((H - CONFIG.gap) / (brickHtarget + CONFIG.gap)));
+    } else {
+      effCols = CONFIG.cols; effRows = CONFIG.rows;
     }
-    let idx = 0;
+
+    const gap = CONFIG.gap, cols = effCols, rows = effRows;
+    const brickW = Math.floor((W - gap) / cols) - gap;
+    const brickH = Math.floor((H - gap) / rows) - gap;
+
+    const total = rows * cols;
+    if(bricksFg.length !== total){
+      bricksFgEl.innerHTML=''; bricksBgEl.innerHTML='';
+      bricksFg=[]; bricksBg=[];
+      const fragFg=document.createDocumentFragment(), fragBg=document.createDocumentFragment();
+      for(let i=0;i<total;i++){
+        const elF=document.createElement('div'); elF.className='brick';
+        const fF=document.createElement('div'); fF.className='fill'; elF.appendChild(fF);
+        fragFg.appendChild(elF); bricksFg.push(elF);
+
+        const elB=document.createElement('div'); elB.className='brick';
+        const fB=document.createElement('div'); fB.className='fill'; elB.appendChild(fB);
+        fragBg.appendChild(elB); bricksBg.push(elB);
+      }
+      bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
+    }
+
+    let idx=0;
     for(let r=0;r<rows;r++){
-      const offset = (r%2===1) ? Math.floor(brickW/2) : 0;
+      const offset = (r%2===1) ? Math.floor(brickW/2) : 0;  // padrão “meio-tijolo”
       for(let c=0;c<cols;c++){
         const x = gap + c*(brickW+gap) + offset;
         const y = gap + r*(brickH+gap);
-        const b = bricks[idx++];
-        b.style.cssText = `left:${x}px; top:${y}px; width:${brickW}px; height:${brickH}px;`;
-        b._x = x; b._y = y; b._w = brickW; b._h = brickH;
+
+        const bFg = bricksFg[idx]; bFg.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
+        bFg._x=x; bFg._y=y; bFg._w=brickW; bFg._h=brickH;
+
+        const bBg = bricksBg[idx]; bBg.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
+        idx++;
       }
     }
+
     colorizeBricks();
     applyProgress(lastProgress);
   }
 
   function buildOrder(){
-    const { rows, cols } = CONFIG;
-    const ordered=[];
-    for(let r=rows-1; r>=0; r--){
-      for(let c=0; c<cols; c++){
-        ordered.push(bricks[r * cols + c]);
+    const rows = effRows, cols = effCols;
+    const orderedFg=[],orderedBg=[];
+    for(let r=rows-1;r>=0;r--){
+      for(let c=0;c<cols;c++){
+        const i=r*cols+c; orderedFg.push(bricksFg[i]); orderedBg.push(bricksBg[i]);
       }
     }
-    return ordered;
+    return [orderedFg,orderedBg];
   }
 
   function applyProgress(p){
-    p = Math.max(0, Math.min(1, p||0)); lastProgress = p;
-    const order = buildOrder();
-    const total = order.length;
-    const filled = Math.floor(p*total);
-    const frac   = (p*total) - filled;
+    p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
+    const [orderFg,orderBg]=buildOrder(); const total=orderFg.length;
+    const filled=Math.floor(p*total), frac=(p*total)-filled;
 
-    for(let i=0; i < total; i++){
-      const b = order[i];
-      const fill = b.querySelector('.fill');
-      b.classList.remove('filled','partial');
-      fill.style.width='0%';
-      if(i < filled){
-        b.classList.add('filled');
-        fill.style.width='100%';
-      }
+    for(let i=0;i<total;i++){
+      const fF=orderFg[i].querySelector('.fill'), fB=orderBg[i].querySelector('.fill');
+      orderFg[i].classList.remove('filled','partial'); fF.style.width='0%';
+      orderBg[i].classList.remove('filled','partial'); fB.style.width='0%';
+      if(i<filled){ orderFg[i].classList.add('filled'); fF.style.width='100%'; orderBg[i].classList.add('filled'); fB.style.width='100%'; }
     }
-    if(filled < total){
-      const b = order[filled];
-      b.classList.add('partial');
-      b.querySelector('.fill').style.width = Math.round(frac*100)+'%';
+    if(filled<total){
+      const fF=orderFg[filled].querySelector('.fill'), fB=orderBg[filled].querySelector('.fill');
+      const percent=Math.round(frac*100)+'%';
+      orderFg[filled].classList.add('partial'); fF.style.width=percent;
+      orderBg[filled].classList.add('partial'); fB.style.width=percent;
     }
   }
 
+  /* ============== Planilha ============== */
   async function fetchProgress(){
-    const base = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
-    const params = new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.range, t:Date.now()+'' });
+    const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
+
+    // MODO percentual direto (ex.: célula A1 = 63.5)
+    if (CONFIG.mode === 'pct') {
+      const params = new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.pctRange, t:Date.now()+'' });
+      try{
+        const res = await fetch(`${base}?${params}`, {cache:'no-store'}); const txt = await res.text();
+        const m = txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
+        const data = JSON.parse(m[1]); const v = Number(data.table.rows?.[0]?.c?.[0]?.v || 0);
+        const p = Math.max(0, Math.min(1, v/100));
+        applyProgress(p);
+        hud.raised.textContent = '—';
+        hud.goal.textContent   = '—';
+        hud.pct.textContent    = (p*100).toFixed(1).replace('.',',')+'%';
+        hud.updated.textContent= 'Atualizado: '+new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+      }catch(e){ console.error(e); if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; } }
+      return;
+    }
+
+    // MODO meta + arrecadado (padrão)
+    const params=new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.range, t:Date.now()+'' });
     try{
-      const res = await fetch(`${base}?${params}`, { cache:'no-store' });
-      const txt = await res.text();
-      const m = txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
-      const data = JSON.parse(m[1]);
-      const rows = data.table.rows || [];
-      const kv = {};
+      const res=await fetch(`${base}?${params}`,{ cache:'no-store' });
+      const txt=await res.text();
+      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
+      const data=JSON.parse(m[1]); const rows=data.table.rows||[]; const kv={};
       rows.forEach(r=>{
-        const k = r.c?.[0]?.v?.toString().trim().toLowerCase();
-        const vRaw = r.c?.[1]?.v;
-        const v = typeof vRaw==='string' ? parseFloat(vRaw.replace(/\./g,'').replace(',','.')) : vRaw;
-        if(k) kv[k] = Number(v||0);
+        const k=r.c?.[0]?.v?.toString().trim().toLowerCase();
+        const vRaw=r.c?.[1]?.v;
+        const v=typeof vRaw==='string'?parseFloat(vRaw.replace(/\./g,'').replace(',','.')):vRaw;
+        if(k) kv[k]=Number(v||0);
       });
-      const goal   = Number(kv[CONFIG.goalField]   || 0);
-      const raised = Number(kv[CONFIG.raisedField] || 0);
-      const p = goal>0 ? (raised/goal) : 0;
+      const goal=Number(kv[CONFIG.goalField]||0);
+      const raised=Number(kv[CONFIG.raisedField]||0);
+      const p=goal>0?raised/goal:0;
+
       applyProgress(p);
-      hud.raised.textContent = formatBRL(raised);
-      hud.goal.textContent   = formatBRL(goal);
-      hud.pct.textContent    = Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',') + '%';
-      hud.updated.textContent= 'Atualizado: ' + new Date().toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'});
+      hud.raised.textContent=formatBRL(raised);
+      hud.goal.textContent  =formatBRL(goal);
+      hud.pct.textContent   =Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',')+'%';
+      hud.updated.textContent='Atualizado: '+new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
     }catch(e){
       console.error(e);
       if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; }
     }
   }
 
+  /* ============== Ciclo ============== */
   window.addEventListener('resize', debounce(()=>{ layoutBricks(); }, 120));
-  loadLogo(CONFIG.logo).then(()=>{
-    ensureAspectFromLogo();
-    layoutBricks();
-  });
-  fetchProgress();
-  setInterval(fetchProgress, CONFIG.pollMs);
+  window.addEventListener('orientationchange', ()=>{ setTimeout(()=>layoutBricks(), 150); });
+
+  loadLogo(CONFIG.logo).then(()=>{ ensureAspectFromLogo(); layoutBricks(); });
+  fetchProgress(); setInterval(fetchProgress, CONFIG.pollMs);
 })();
 </script>
 </body>
