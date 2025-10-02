@@ -8,14 +8,14 @@
 :root{
   /* Visual base */
   --bg:#FFFAF5;
-  --grout:#E5DBD1;   /* cimento um pouco mais escuro p/ contraste */
+  --grout:#E5DBD1;      /* cimento um pouco mais escuro p/ contraste */
   --grid:#CDBFB3;
   --brick-bg-color:#a35a41; /* cor do “tijolo de fundo” (área vazada) */
 
   /* Layout */
-  --pad:0px;         /* margem interna do logo (0 = máximo) */
-  --joint:0.8px;     /* espessura da junta */
-  --ghost:0.12;      /* opacidade da imagem-fantasma (ajustável via ?ghost=0.18) */
+  --pad:0px;           /* margem interna do logo (0 = máximo) */
+  --joint:0.8px;       /* espessura da junta */
+  --ghost:0.12;        /* opacidade da imagem-fantasma (ajustável via ?ghost=0.18) */
   --panel-max-width:1600px;
 }
 *{box-sizing:border-box}
@@ -24,35 +24,37 @@ body{
   margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;
   background:var(--bg); color:#111; display:flex; align-items:center; justify-content:center; padding:12px;
 }
+
+/* NOVO: Animação de entrada suave */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .panel{
   width:min(var(--panel-max-width),98vw);
   background:#fff; border-radius:20px; box-shadow:0 8px 30px rgba(0,0,0,.08);
   padding:16px; display:flex; flex-direction:column; gap:16px;
+  animation: fadeIn 0.6s ease-out forwards; /* APLICAÇÃO DA ANIMAÇÃO */
 }
 .gauge{
   position:relative; width:100%;
-  /* sem aspect-ratio fixo aqui -> JS define pelo logo para evitar distorção */
   border-radius:14px; overflow:hidden; background:#F7EFE7;
-  min-height: 300px; /* evita “sumir” enquanto o logo carrega */
+  min-height: 300px;
 }
 
-/* 1) Imagem-fantasma (referência visual) */
 .ghost-logo{
   position:absolute; inset:var(--pad);
   width:calc(100% - (var(--pad) * 2)); height:calc(100% - (var(--pad) * 2));
   margin:auto; object-fit:contain; opacity:var(--ghost);
   filter:grayscale(1) sepia(1) brightness(1.5);
 }
-
-/* 2) Tijolos de fundo (área vazada) */
 .bricks-bg{ position:absolute; inset:0; }
-
-/* 3) Tijolos da frente (recortados pelo logo) */
 .mask-layer{
   position:absolute; inset:0; background:transparent;
-  --mask:url('logo.png'); /* será substituída via JS após carregar o logo */
-  -webkit-mask-image:var(--mask);   mask-image:var(--mask);
-  -webkit-mask-repeat:no-repeat;    mask-repeat:no-repeat;
+  --mask:url('logo.png');
+  -webkit-mask-image:var(--mask);    mask-image:var(--mask);
+  -webkit-mask-repeat:no-repeat;     mask-repeat:no-repeat;
   -webkit-mask-position:center;     mask-position:center;
   -webkit-mask-size:contain;        mask-size:contain;
 }
@@ -61,14 +63,31 @@ body{
 .brick{
   position:absolute; background:var(--grout); border-radius:2px; overflow:hidden;
   box-shadow: inset 0 0 0 var(--joint) var(--grid);
+  transition: transform 0.2s ease; /* NOVO: Transição para hover */
 }
+
+/* NOVO: Efeito de hover interativo */
+.brick:hover {
+    transform: scale(1.1);
+    z-index: 10;
+}
+
 .brick .fill{
   position:absolute; inset:0; width:0%; height:100%;
-  background:var(--brick-bg-color); transition:width .35s ease;
+  /* MELHORIA: Gradiente e sombra para textura e profundidade */
+  background: linear-gradient(145deg, hsl(14, 45%, 48%), hsl(14, 45%, 40%));
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
+  transition:width .35s ease;
 }
+
+/* Garante que os tijolos de fundo mantenham a cor original */
+.bricks-bg .brick .fill {
+    background: var(--brick-bg-color);
+    box-shadow: none;
+}
+
 .brick.filled .fill{ width:100% }
 
-/* HUD abaixo do painel para não cobrir o logo */
 .hud{
   display:flex; flex-direction:row; flex-wrap:wrap; justify-content:space-around;
   gap:10px 20px; padding:10px; border:1px solid #eee; border-radius:12px;
@@ -87,17 +106,12 @@ body{
   <div class="panel">
     <div class="gauge" id="gauge">
       <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique o arquivo.</div>
-
-      <!-- fantasma (src definido após carregar o logo) -->
       <img class="ghost-logo" id="ghostLogo" alt="logo" />
-
       <div class="bricks-bg" id="bricksBg"></div>
-
       <div class="mask-layer" id="mask">
         <div class="bricks" id="bricksFg"></div>
       </div>
     </div>
-
     <div class="hud" id="hud">
       <div><span>Arrecadado</span><br><b id="hudRaised">R$ 0,00</b></div>
       <div><span>Meta</span><br><b id="hudGoal">R$ 0,00</b></div>
@@ -108,45 +122,33 @@ body{
 
 <script>
 (function(){
-  /* ============== Parâmetros ============== */
   const qs = new URLSearchParams(location.search);
   const CONFIG = {
-    // Planilha
     sheetId:  qs.get('sheet_id') || '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY',
     sheetName:qs.get('sheet')    || 'Tijolometro',
     range:    qs.get('range')    || 'A1:B2',
     goalField:  qs.get('goal_field')   || 'meta',
     raisedField:qs.get('raised_field') || 'arrecadado',
-    mode: qs.get('mode') || 'sum',             // 'sum' (meta/alcançado) ou 'pct'
-    pctRange: qs.get('pct_range') || 'A1',     // usado se mode='pct'
-
-    // Logo
+    mode: qs.get('mode') || 'sum',
+    pctRange: qs.get('pct_range') || 'A1',
     logo: qs.get('logo') || 'logo.png',
-
-    // Tijolos (você pode usar cols/rows OU brick_px)
     cols: parseInt(qs.get('cols') || '120', 10),
     rows: parseInt(qs.get('rows') || '72',  10),
-    brickPx: parseInt(qs.get('brick_px') || '0', 10), // 0 = desativado; ex.: 12 define auto cols/rows
+    brickPx: parseInt(qs.get('brick_px') || '0', 10),
     gap: 1,
-
-    // Aparência
     pollMs: parseInt(qs.get('poll_ms') || '30000', 10),
     pad: qs.get('pad') != null ? parseInt(qs.get('pad'),10) : 0,
     grout: qs.get('grout') || '',
     joint: qs.get('joint') || '',
     ghost: qs.get('ghost') || '',
-
-    // Paleta (brand3 por padrão)
     palette: qs.get('palette') || 'brand3'
   };
 
-  // CSS dinâmico
   if (!Number.isNaN(CONFIG.pad)) document.documentElement.style.setProperty('--pad', CONFIG.pad + 'px');
   if (CONFIG.grout) document.documentElement.style.setProperty('--grout', CONFIG.grout);
   if (CONFIG.joint) document.documentElement.style.setProperty('--joint', CONFIG.joint + 'px');
   if (CONFIG.ghost) document.documentElement.style.setProperty('--ghost', CONFIG.ghost);
 
-  /* ============== Elementos ============== */
   const gauge = document.getElementById('gauge');
   const maskEl = document.getElementById('mask');
   const ghostEl = document.getElementById('ghostLogo');
@@ -161,7 +163,6 @@ body{
     updated: document.getElementById('hudUpdated')
   };
 
-  /* ============== Estado ============== */
   const paintCanvas = document.createElement('canvas');
   const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
   let logoImg = null, aspectSet = false;
@@ -169,7 +170,6 @@ body{
   let lastProgress = 0;
   let effCols = CONFIG.cols, effRows = CONFIG.rows;
 
-  /* ============== Utilidades ============== */
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
@@ -190,10 +190,9 @@ body{
     aspectSet = true;
   }
 
-  /* ======= Paletas ======= */
   const PALETTES = {
-    brand2: ['#0A4AA6', '#F2C035'],                   // opcional
-    brand3: ['#0A4AA6', '#F2C035', '#8B1E1E'],        // AZUL, AMARELO, VERMELHO-TIJOLO
+    brand2: ['#0A4AA6', '#F2C035'],
+    brand3: ['#0A4AA6', '#F2C035', '#8B1E1E'],
   };
   function hexToRgb(hex){ const n=parseInt(hex.replace('#',''),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
   function dist2(c1,c2){ const dr=c1.r-c2.r,dg=c1.g-c2.g,db=c1.b-c2.b; return dr*dr+dg*dg+db*db; }
@@ -204,7 +203,6 @@ body{
     return best;
   }
 
-  /* ======= Amostragem robusta (mediana de 9 pontos) usando buffer ======= */
   function makeSampler(data, W, H){
     return function px(x,y){
       const xi = Math.max(0, Math.min(W-1, Math.round(x)));
@@ -218,64 +216,52 @@ body{
   function colorizeBricks(){
     if(!logoImg) return;
     const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
-
     paintCanvas.width=W; paintCanvas.height=H; pctx.clearRect(0,0,W,H);
-
     const ar = logoImg.naturalWidth / logoImg.naturalHeight;
     let dw=W, dh=W/ar; if(dh>H){ dh=H; dw=H*ar; }
     const dx=(W-dw)/2, dy=(H-dh)/2;
     pctx.drawImage(logoImg, dx, dy, dw, dh);
-
     const buf = pctx.getImageData(0,0,W,H).data;
     const samp = makeSampler(buf, W, H);
-
     for(let i=0;i<bricksFg.length;i++){
       const bFg = bricksFg[i], bBg = bricksBg[i];
       const x=bFg._x, y=bFg._y, w=bFg._w, h=bFg._h;
-
       const pts = [
         [x+w/2, y+h/2],
-        [x+1,   y+1], [x+w-2, y+1], [x+1, y+h-2], [x+w-2, y+h-2],
+        [x+1, y+1], [x+w-2, y+1], [x+1, y+h-2], [x+w-2, y+h-2],
         [x+w/2, y+1], [x+w/2, y+h-2], [x+1, y+h/2], [x+w-2, y+h/2]
       ];
       const rs=[], gs=[], bs=[], as=[];
       for(const [px,py] of pts){ const d=samp(px,py); rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]); }
       const A = median(as);
-
       const fgFill = bFg.querySelector('.fill');
       const bgFill = bBg.querySelector('.fill');
-
-      if (A < 100){ // pouco conteúdo do logo → trata como “vazio”
+      if (A < 100){
         fgFill.style.background='transparent';
         bgFill.style.opacity='1';
       } else {
         const r=median(rs), g=median(gs), b=median(bs);
-        const mapped = mapToPalette(r,g,b, CONFIG.palette); // trava nas cores oficiais
+        const mapped = mapToPalette(r,g,b, CONFIG.palette);
         fgFill.style.background = mapped;
         bgFill.style.opacity='0';
       }
     }
   }
 
-  /* ======= Grid de tijolos ======= */
   function layoutBricks(){
     ensureAspectFromLogo();
     const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
-
-    // Modo “tamanho alvo” → calcula cols/rows para caber bem na tela
     if (CONFIG.brickPx && CONFIG.brickPx > 0) {
       const brickWtarget = CONFIG.brickPx;
-      const brickHtarget = Math.round(brickWtarget * 0.6); // proporção visual de tijolo
+      const brickHtarget = Math.round(brickWtarget * 0.6);
       effCols = Math.max(20, Math.floor((W - CONFIG.gap) / (brickWtarget + CONFIG.gap)));
       effRows = Math.max(12, Math.floor((H - CONFIG.gap) / (brickHtarget + CONFIG.gap)));
     } else {
       effCols = CONFIG.cols; effRows = CONFIG.rows;
     }
-
     const gap = CONFIG.gap, cols = effCols, rows = effRows;
     const brickW = Math.floor((W - gap) / cols) - gap;
     const brickH = Math.floor((H - gap) / rows) - gap;
-
     const total = rows * cols;
     if(bricksFg.length !== total){
       bricksFgEl.innerHTML=''; bricksBgEl.innerHTML='';
@@ -285,29 +271,24 @@ body{
         const elF=document.createElement('div'); elF.className='brick';
         const fF=document.createElement('div'); fF.className='fill'; elF.appendChild(fF);
         fragFg.appendChild(elF); bricksFg.push(elF);
-
         const elB=document.createElement('div'); elB.className='brick';
         const fB=document.createElement('div'); fB.className='fill'; elB.appendChild(fB);
         fragBg.appendChild(elB); bricksBg.push(elB);
       }
       bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
     }
-
     let idx=0;
     for(let r=0;r<rows;r++){
-      const offset = (r%2===1) ? Math.floor(brickW/2) : 0;  // padrão “meio-tijolo”
+      const offset = (r%2===1) ? Math.floor(brickW/2) : 0;
       for(let c=0;c<cols;c++){
         const x = gap + c*(brickW+gap) + offset;
         const y = gap + r*(brickH+gap);
-
         const bFg = bricksFg[idx]; bFg.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
         bFg._x=x; bFg._y=y; bFg._w=brickW; bFg._h=brickH;
-
         const bBg = bricksBg[idx]; bBg.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
         idx++;
       }
     }
-
     colorizeBricks();
     applyProgress(lastProgress);
   }
@@ -327,9 +308,14 @@ body{
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
     const [orderFg,orderBg]=buildOrder(); const total=orderFg.length;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
-
     for(let i=0;i<total;i++){
       const fF=orderFg[i].querySelector('.fill'), fB=orderBg[i].querySelector('.fill');
+      
+      // MELHORIA: Animação escalonada
+      const delay = i * 2; // Atraso de 2ms por tijolo
+      fF.style.transitionDelay = `${delay}ms`;
+      fB.style.transitionDelay = `${delay}ms`;
+      
       orderFg[i].classList.remove('filled','partial'); fF.style.width='0%';
       orderBg[i].classList.remove('filled','partial'); fB.style.width='0%';
       if(i<filled){ orderFg[i].classList.add('filled'); fF.style.width='100%'; orderBg[i].classList.add('filled'); fB.style.width='100%'; }
@@ -342,11 +328,8 @@ body{
     }
   }
 
-  /* ============== Planilha ============== */
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
-
-    // MODO percentual direto (ex.: célula A1 = 63.5)
     if (CONFIG.mode === 'pct') {
       const params = new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.pctRange, t:Date.now()+'' });
       try{
@@ -362,8 +345,6 @@ body{
       }catch(e){ console.error(e); if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; } }
       return;
     }
-
-    // MODO meta + arrecadado (padrão)
     const params=new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.range, t:Date.now()+'' });
     try{
       const res=await fetch(`${base}?${params}`,{ cache:'no-store' });
@@ -379,7 +360,6 @@ body{
       const goal=Number(kv[CONFIG.goalField]||0);
       const raised=Number(kv[CONFIG.raisedField]||0);
       const p=goal>0?raised/goal:0;
-
       applyProgress(p);
       hud.raised.textContent=formatBRL(raised);
       hud.goal.textContent  =formatBRL(goal);
@@ -391,7 +371,6 @@ body{
     }
   }
 
-  /* ============== Ciclo ============== */
   window.addEventListener('resize', debounce(()=>{ layoutBricks(); }, 120));
   window.addEventListener('orientationchange', ()=>{ setTimeout(()=>layoutBricks(), 150); });
 
