@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Tijolômetro</title>
 <style>
-:root{
+:root {
   /* Visual base */
-  --bg:#FFFAF5;
-  --grout:#E5DBD1;      /* cimento um pouco mais escuro p/ contraste */
-  --grid:#CDBFB3;
-  --brick-bg-color:#a35a41; /* cor do “tijolo de fundo” (área vazada) */
+  --bg: #FFFAF5;
+  --grout: #E5DBD1;                     /* Cimento (mantido) */
+  --grid: #CDBFB3;
+  --brick-bg-color: #d1c9c3;            /* NOVO: Fundo sutil para destacar o logo */
 
   /* Layout */
-  --pad:0px;           /* margem interna do logo (0 = máximo) */
-  --joint:0.8px;       /* espessura da junta */
-  --ghost:0.12;        /* opacidade da imagem-fantasma (ajustável via ?ghost=0.18) */
-  --panel-max-width:1600px;
+  --pad: 0px;
+  --joint: 0.8px;
+  --ghost: 0.12;
+  --panel-max-width: 1600px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -334,7 +334,7 @@ body{
   function applyProgress(p){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
     const [orderFg,orderBg]=buildOrder(); const total=orderFg.length;
-    if (total === 0) return; // Adiciona guarda de segurança
+    if (total === 0) return;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
     for(let i=0;i<total;i++){
       const fF=orderFg[i].querySelector('.fill'), fB=orderBg[i].querySelector('.fill');
