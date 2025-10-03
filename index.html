@@ -358,7 +358,7 @@ body{
       hud.raised.textContent=formatBRL(raised);
       hud.goal.textContent  =formatBRL(goal);
       hud.pct.textContent   =Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',')+'%';
-      hud.updated].textContent= 'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+      hud.updated.textContent= 'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
     }catch(e){
       console.error(e);
       if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; }
