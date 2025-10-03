@@ -10,7 +10,7 @@
   --bg: #FFFAF5;
   --grout: #E5DBD1;
   --grid: #CDBFB3;
-  --brick-bg-color: rgba(163, 90, 65, 0.4); /* NOVO: Cor original do tijolo com 40% de opacidade */
+  --brick-bg-color: #a35a41; /* VOLTOU À COR ORIGINAL MAIS ESCURA */
 
   /* Layout */
   --pad: 0px;
@@ -71,10 +71,18 @@ body{
   transition:width .35s ease;
 }
 .bricks-bg .brick .fill {
-    background: var(--brick-bg-color);
+    background: var(--brick-bg-color); /* A cor original do tijolo, sem transparência */
     box-shadow: none;
 }
-.brick.filled .fill{ width:100% }
+
+/* NOVO: ESTILO PARA REALÇAR OS TIJOLOS DO LOGO QUANDO PREENCHIDOS */
+.brick.filled .fill {
+    width:100%;
+    filter: brightness(1.2); /* Logo 20% mais brilhante */
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4); /* Leve "aura" de luz */
+}
+/* FIM DO NOVO ESTILO */
+
 .hud{
   display:flex; flex-direction:row; flex-wrap:wrap; justify-content:space-around;
   gap:10px 20px; padding:10px; border:1px solid #eee; border-radius:12px;
@@ -117,8 +125,8 @@ body{
     mode: qs.get('mode') || 'sum',
     pctRange: qs.get('pct_range') || 'A1',
     logo: qs.get('logo') || 'logo.png',
-    cols: parseInt(qs.get('cols') || '120', 10),
-    rows: parseInt(qs.get('rows') || '72',  10),
+    cols: parseInt(qs.get('cols') || '240', 10), /* DOBRADO */
+    rows: parseInt(qs.get('rows') || '144', 10), /* DOBRADO */
     brickPx: parseInt(qs.get('brick_px') || '0', 10),
     gap: 1,
     pollMs: parseInt(qs.get('poll_ms') || '30000', 10),
