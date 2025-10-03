@@ -15,7 +15,7 @@
   /* Layout */
   --pad: 0px;
   --joint: 0.8px;
-  --ghost: 0.12;
+  --ghost: 0.12; /* Este valor não terá mais efeito visual por causa do opacity:0 */
   --panel-max-width: 1600px;
 }
 *{box-sizing:border-box}
@@ -36,13 +36,15 @@ body{
 }
 .gauge{
   position:relative; width:100%;
-  border-radius:14px; overflow:hidden; background:#F7EFE7;
+  border-radius:14px; overflow:hidden;
+  background:#F7EFE7; /* Fundo claro para o logo se destacar */
   min-height: 300px;
 }
 .ghost-logo{
   position:absolute; inset:var(--pad);
   width:calc(100% - (var(--pad) * 2)); height:calc(100% - (var(--pad) * 2));
-  margin:auto; object-fit:contain; opacity:var(--ghost);
+  margin:auto; object-fit:contain;
+  opacity:0; /* NOVO: Torna o ghost-logo invisível. O fundo do .gauge fará o papel de realce. */
   filter:grayscale(1) sepia(1) brightness(1.5);
 }
 .bricks-bg{ position:absolute; inset:0; }
@@ -71,18 +73,14 @@ body{
   transition:width .35s ease;
 }
 .bricks-bg .brick .fill {
-    background: var(--brick-bg-color); /* A cor original do tijolo, sem transparência */
+    background: var(--brick-bg-color); /* Tijolo escuro original */
     box-shadow: none;
 }
-
-/* NOVO: ESTILO PARA REALÇAR OS TIJOLOS DO LOGO QUANDO PREENCHIDOS */
-.brick.filled .fill {
+.brick.filled .fill{
     width:100%;
-    filter: brightness(1.2); /* Logo 20% mais brilhante */
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.4); /* Leve "aura" de luz */
+    /* Removido: filter: brightness(1.2); */
+    /* Removido: box-shadow: 0 0 8px rgba(255, 255, 255, 0.4); */
 }
-/* FIM DO NOVO ESTILO */
-
 .hud{
   display:flex; flex-direction:row; flex-wrap:wrap; justify-content:space-around;
   gap:10px 20px; padding:10px; border:1px solid #eee; border-radius:12px;
@@ -125,8 +123,8 @@ body{
     mode: qs.get('mode') || 'sum',
     pctRange: qs.get('pct_range') || 'A1',
     logo: qs.get('logo') || 'logo.png',
-    cols: parseInt(qs.get('cols') || '240', 10), /* DOBRADO */
-    rows: parseInt(qs.get('rows') || '144', 10), /* DOBRADO */
+    cols: parseInt(qs.get('cols') || '120', 10), /* VOLTOU AO ORIGINAL */
+    rows: parseInt(qs.get('rows') || '72', 10),  /* VOLTOU AO ORIGINAL */
     brickPx: parseInt(qs.get('brick_px') || '0', 10),
     gap: 1,
     pollMs: parseInt(qs.get('poll_ms') || '30000', 10),
@@ -360,7 +358,7 @@ body{
       hud.raised.textContent=formatBRL(raised);
       hud.goal.textContent  =formatBRL(goal);
       hud.pct.textContent   =Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',')+'%';
-      hud.updated.textContent= 'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+      hud.updated].textContent= 'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
     }catch(e){
       console.error(e);
       if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; }
