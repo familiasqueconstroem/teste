@@ -114,8 +114,8 @@ body{
   const qs = new URLSearchParams(location.search);
   const CONFIG = {
     // IMPORTANTE: Verifique se este é o ID da sua planilha correta!
-    sheetId:   qs.get('sheet_id') || '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY',
-    sheetName: qs.get('sheet')    || 'Tijolometro',
+    sheetId:   qs.get('sheet_id') || '1-_J2DwVSn7LULB55YVPCHQsQ-PRfZYt8oDJhepdXYFY',
+    sheetName: qs.get('sheet')    || 'Cópia de Tijolometro',
     range:     qs.get('range')    || 'A1:D10', // Lê as 4 colunas (Rótulo, Valor, Início, Fim)
     logo: qs.get('logo') || 'logo.png',
     cols: parseInt(qs.get('cols') || '120', 10),
