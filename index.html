@@ -174,8 +174,7 @@ body{
   function mapToPalette(r,g,b, name){ const set = PALETTES[name]; if(!set) return `rgb(${r},${g},${b})`; let best=set[0], bestD=Infinity, c1={r,g,b}; for(const h of set){ const c2=hexToRgb(h); const d=dist2(c1,c2); if(d<bestD){bestD=d; best=h;} } return best; }
   function makeSampler(data, W, H){ return function px(x,y){ const xi = Math.max(0, Math.min(W-1, Math.round(x))); const yi = Math.max(0, Math.min(H-1, Math.round(y))); const i = (yi*W + xi) * 4; return [data[i], data[i+1], data[i+2], data[i+3]]; }; }
   function median(a){ const b=a.slice().sort((m,n)=>m-n); return b[Math.floor(b.length/2)]; }
-  
-  // A "mágica" acontece aqui. Esta função está exatamente como na versão original que funcionava.
+
   function colorizeBricks(){
     if(!logoImg) return;
     const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
@@ -196,15 +195,14 @@ body{
       const fgFill = bFg.querySelector('.fill');
       const bgFill = bBg.querySelector('.fill');
       
-      // Esta lógica decide se o tijolo faz parte do logo ou do fundo
-      if (A < 100){ // Se a área do logo é transparente aqui...
-        fgFill.style.background='transparent'; // O tijolo da frente fica transparente
-        bgFill.style.opacity='1'; // O tijolo do fundo (escuro) aparece
-      } else { // Se a área do logo é opaca...
+      if (A < 100){
+        fgFill.style.background='transparent';
+        bgFill.style.opacity='1';
+      } else {
         const r=median(rs), g=median(gs), b=median(bs);
         const mapped = mapToPalette(r,g,b, CONFIG.palette);
-        fgFill.style.background = mapped; // O tijolo da frente ganha a cor do logo
-        bgFill.style.opacity='0'; // O tijolo do fundo fica transparente, criando o "furo"
+        fgFill.style.background = mapped;
+        bgFill.style.opacity='0';
       }
     }
   }
@@ -213,8 +211,27 @@ body{
   function buildOrder(){ const cols = (typeof effCols === 'number' && effCols > 0) ? effCols : CONFIG.cols; const rows = (typeof effRows === 'number' && effRows > 0) ? effRows : CONFIG.rows; const orderedFg=[],orderedBg=[]; for(let r=rows-1;r>=0;r--){ for(let c=0;c<cols;c++){ const i=r*cols+c; orderedFg.push(bricksFg[i]); orderedBg.push(bricksBg[i]); } } return [orderedFg,orderedBg]; }
   function applyProgress(p){ p=Math.max(0,Math.min(1,p||0)); lastProgress=p; const [orderFg,orderBg]=buildOrder(); const total=orderFg.length; if (total === 0) return; const filled=Math.floor(p*total), frac=(p*total)-filled; for(let i=0;i<total;i++){ const fF=orderFg[i].querySelector('.fill'), fB=orderBg[i].querySelector('.fill'); const delay = i * 2; fF.style.transitionDelay = `${delay}ms`; fB.style.transitionDelay = `${delay}ms`; orderFg[i].classList.remove('filled','partial'); fF.style.width='0%'; orderBg[i].classList.remove('filled','partial'); fB.style.width='0%'; if(i<filled){ orderFg[i].classList.add('filled'); fF.style.width='100%'; orderBg[i].classList.add('filled'); fB.style.width='100%'; } } if(filled<total){ const fF=orderFg[filled].querySelector('.fill'), fB=orderBg[filled].querySelector('.fill'); const percent=Math.round(frac*100)+'%'; orderFg[filled].classList.add('partial'); fF.style.width=percent; orderBg[filled].classList.add('partial'); fB.style.width=percent; } }
 
-  // Esta é a nova função de busca de dados, com uma correção importante nas datas.
   async function fetchProgress(){
+    // FUNÇÃO AJUDADORA: Converte o valor da planilha para número corretamente
+    function parseValor(valorDaPlanilha) {
+      if (typeof valorDaPlanilha === 'number') {
+        return valorDaPlanilha; // Se já for um número, não faz nada
+      }
+      if (typeof valorDaPlanilha !== 'string') {
+        return 0; // Se não for número nem texto, retorna zero
+      }
+
+      const textoLimpo = valorDaPlanilha.trim();
+
+      // Se o texto tem vírgula, trata como formato brasileiro (ex: "1.500,50")
+      if (textoLimpo.includes(',')) {
+        return parseFloat(textoLimpo.replace(/\./g, '').replace(',', '.')) || 0;
+      }
+      
+      // Se não tem vírgula, trata como formato americano (ex: "1500.50")
+      return parseFloat(textoLimpo) || 0;
+    }
+
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
     const params=new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.range, t:Date.now()+'' });
     try{
@@ -225,7 +242,7 @@ body{
         const rows=data.table.rows||[];
         
         const raisedRow = rows.find(r => r.c?.[0]?.v?.toString().trim().toLowerCase() === 'arrecadado');
-        const raised = raisedRow ? parseFloat(String(raisedRow.c?.[1]?.v).replace(/\./g, '').replace(',', '.')) || 0 : 0;
+        const raised = raisedRow ? parseValor(raisedRow.c?.[1]?.v) : 0;
 
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
@@ -238,15 +255,14 @@ body{
             const label = r.c?.[0]?.v?.toString().trim();
             if (!label || label.toLowerCase() === 'arrecadado') continue;
 
-            const goalValue = parseFloat(String(r.c?.[1]?.v).replace(/\./g, '').replace(',', '.')) || 0;
+            const goalValue = parseValor(r.c?.[1]?.v);
             const startDateStr = r.c?.[2]?.v;
             const endDateStr = r.c?.[3]?.v;
             
             if (startDateStr && endDateStr) {
-                const startParts = startDateStr.match(/\d+/g).map(Number); // Ex: [2025, 10, 7]
+                const startParts = startDateStr.match(/\d+/g).map(Number);
                 const endParts = endDateStr.match(/\d+/g).map(Number);
                 
-                // CORREÇÃO: O mês em JavaScript é baseado em zero (0=Jan, 1=Fev, ...), então subtraímos 1.
                 const startDate = new Date(startParts[0], startParts[1] - 1, startParts[2]);
                 const endDate = new Date(endParts[0], endParts[1] - 1, endParts[2]);
                 
@@ -263,7 +279,7 @@ body{
             const firstGoalRow = rows.find(r => r.c?.[0]?.v?.toString().trim().toLowerCase() !== 'arrecadado');
             if (firstGoalRow) {
               activeLabel = firstGoalRow.c?.[0]?.v?.toString().trim() || 'Meta';
-              activeGoal = parseFloat(String(firstGoalRow.c?.[1]?.v).replace(/\./g, '').replace(',', '.')) || 0;
+              activeGoal = parseValor(firstGoalRow.c?.[1]?.v);
             }
         }
 
