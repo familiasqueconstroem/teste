@@ -6,34 +6,28 @@
 <title>Tijolômetro — Cada Tijolo Conta</title>
 <style>
 :root{
-  /* Cores base */
   --bg:#FFFAF5; --grout:#E5DBD1; --grid:#CDBFB3; --brick-bg:#a35a41; --joint:0.8px;
-  /* Layout */
-  --pad:0px; --panel-max:1600px;
-  /* Mascote */
-  --mascot-size: clamp(120px, 24vmin, 280px);
+  --panel-max:1600px; --pad:0px;
 }
-*{box-sizing:border-box} html,body{height:100%}
+*{box-sizing:border-box}
+html,body{height:100%}
 body{
-  margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;
+  margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
   background:var(--bg); color:#111; display:flex; align-items:center; justify-content:center; padding:12px;
 }
-@keyframes fadeIn{from{opacity:0;transform:scale(.985)} to{opacity:1;transform:scale(1)}}
 .panel{
   width:min(var(--panel-max),98vw);
   background:#fff; border-radius:20px; box-shadow:0 8px 30px rgba(0,0,0,.08);
-  padding:16px; display:flex; flex-direction:column; gap:16px; animation:fadeIn .45s ease-out both;
+  padding:16px; display:flex; flex-direction:column; gap:16px;
 }
-
-/* ----- Área principal ----- */
 .gauge{
   position:relative; width:100%; min-height:300px;
   border-radius:14px; overflow:hidden; background:#F7EFE7;
 }
 .ghost-logo{
   position:absolute; inset:var(--pad);
-  width:calc(100% - (var(--pad) * 2)); height:calc(100% - (var(--pad) * 2));
-  margin:auto; object-fit:contain; opacity:0; /* só para aspect-ratio */
+  width:calc(100% - (var(--pad)*2)); height:calc(100% - (var(--pad)*2));
+  object-fit:contain; opacity:0; /* só para manter aspect-ratio do logo */
 }
 .bricks{ position:relative; width:100%; height:100% }
 .brick{
@@ -51,7 +45,7 @@ body{
   -webkit-mask-size:contain; mask-size:contain;
 }
 
-/* ----- HUD ----- */
+/* HUD: rótulo em cima */
 .hud{
   display:grid; grid-template-columns: repeat(4, minmax(0,1fr));
   gap:10px; padding:10px; border:1px solid #eee; border-radius:12px; background:#fdfdfd;
@@ -61,69 +55,33 @@ body{
 .hud .k b{ font-size:20px }
 .hud .updated{ font-size:11px; color:#777; align-self:end; text-align:right }
 
-/* ----- Alert ----- */
 .alert{
   position:absolute; left:14px; top:14px; background:#fff3cd; border:1px solid #ffe69c; color:#664d03;
   padding:8px 10px; border-radius:10px; font-size:12px; display:none; z-index:9;
 }
 .alert b{ display:block; margin-bottom:4px }
 
-/* ----- Mascote ----- */
+/* Mascote (opcional) */
 .mascot{
   position:absolute; right:12px; bottom:10px; z-index:6;
-  width:var(--mascot-size); height:auto; display:none; transform-origin:50% 100%;
+  width:clamp(120px, 24vmin, 280px); height:auto; display:none;
   filter: drop-shadow(0 12px 24px rgba(0,0,0,.25));
 }
-.mascot.bob{ animation:mascotBob 3s ease-in-out infinite }
-@keyframes mascotBob{0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)}}
-.mascot.wave{ animation:mascotWave .9s ease 1 }
-@keyframes mascotWave{
-  0%{transform:translateY(0) rotate(0)} 25%{transform:translateY(-2deg) rotate(-3deg)}
-  50%{transform:translateY(0) rotate(2deg)} 75%{transform:translateY(-1deg) rotate(-2deg)}
-  100%{transform:translateY(0) rotate(0)}
-}
+.mascot.wave{ animation:wave .8s ease 1 }
+@keyframes wave{0%{transform:rotate(0)}25%{transform:rotate(-3deg)}50%{transform:rotate(2deg)}75%{transform:rotate(-2deg)}100%{transform:rotate(0)}}
 .mascot-bubble{
-  position:absolute; right:calc(var(--mascot-size) - 10px); bottom:calc(100% - 8px);
-  background:#fff; color:#222; border-radius:12px; padding:8px 10px; max-width:52ch;
-  box-shadow:0 8px 24px rgba(0,0,0,.18); font-size:14px; line-height:1.3; display:none; z-index:7;
+  position:absolute; right:180px; bottom:140px; background:#fff; color:#222;
+  border-radius:12px; padding:8px 10px; max-width:48ch; box-shadow:0 8px 24px rgba(0,0,0,.18);
+  font-size:14px; line-height:1.3; display:none; z-index:7;
 }
-.mascot-bubble.show{ display:block; animation:fadeUp .22s ease }
-@keyframes fadeUp{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}}
-.throw-brick{ position:fixed; z-index:5; border-radius:2px; background:var(--brick-bg); box-shadow: inset 0 0 0 var(--joint) var(--grid); }
-@media (max-width:640px){ .mascot{ right:8px; bottom:8px } .mascot-bubble{ right:calc(var(--mascot-size) - 16px) } }
-@media (prefers-reduced-motion: reduce){ .mascot.bob, .mascot.wave{ animation:none !important } }
+.mascot-bubble.show{ display:block }
 
-/* ----- FABs + Painel (simples) ----- */
-.fab{position:fixed;right:18px;z-index:9998;width:54px;height:54px;border-radius:50%;
-  color:#fff;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 12px 28px rgba(0,0,0,.18);cursor:pointer;font-size:22px;border:0}
-.fab:active{transform:scale(.98)}
-#fab{bottom:18px;background:#0A4AA6}
-#shareFab{bottom:86px;background:#25D366}
-.drawer{position:fixed;inset:0 0 0 auto;width:340px;max-width:92vw;background:#fff;border-left:1px solid #eee;
-  box-shadow:-16px 0 40px rgba(0,0,0,.18);transform:translateX(105%);transition:transform .28s ease;z-index:9999;
-  display:flex;flex-direction:column}
-.drawer.open{transform:none}
-.drawer .head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee}
-.drawer .body{padding:12px 16px 18px;overflow:auto}
-.drawer .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
-.drawer select,.drawer input[type="range"]{width:100%;font:inherit;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff}
-.drawer .btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer}
-.drawer .btn.primary{background:#0A4AA6;color:#fff;border-color:#0A4AA6}
-.drawer h4{margin:14px 0 6px 0}
-.drawer .small{font-size:12px;color:#666}
-
-/* ----- Share Sheet (seleção de mensagem) ----- */
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.25);display:none;align-items:flex-end;justify-content:center;z-index:10000}
-.modal.show{display:flex}
-.sheet{background:#fff; width:min(640px, 96vw); border-radius:16px 16px 0 0; box-shadow:0 -12px 36px rgba(0,0,0,.3); padding:14px 14px 16px}
-.sheet .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.sheet .opt{display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #eee; border-radius:12px; margin:8px 0}
-.sheet .opt input{margin-top:2px}
-.sheet .preview{font-size:14px; background:#fafafa; border:1px dashed #ddd; border-radius:10px; padding:10px; margin-top:8px; white-space:pre-wrap}
-.sheet .row{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
-.sheet .btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer}
-.sheet .btn.primary{background:#25D366;color:#fff;border-color:#25D366}
+/* Dev status (mostra erro JS) */
+#devStatus{
+  position:fixed; left:10px; bottom:10px; z-index:9999; font:12px/1.2 system-ui;
+  background:#e6ffed; color:#036703; border:1px solid #b7efc0; padding:6px 8px; border-radius:8px;
+}
+#devStatus.err{ background:#ffe6e6; color:#8a0000; border-color:#ffb3b3 }
 </style>
 </head>
 <body>
@@ -131,18 +89,12 @@ body{
     <div class="gauge" id="gauge">
       <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique <code>logo.png</code>.</div>
 
-      <!-- “fantasma” só para aspect-ratio -->
       <img id="ghostLogo" class="ghost-logo" alt="logo" />
-
-      <!-- fundo (vazios) -->
       <div class="bricks-bg"><div class="bricks" id="bricksBg"></div></div>
-
-      <!-- frente (recortada no logo) -->
       <div class="mask-layer" id="mask"><div class="bricks" id="bricksFg"></div></div>
 
-      <!-- mascote -->
-      <img id="mascotImg" class="mascot" alt="Mascote" />
-      <div id="mascotBubble" class="mascot-bubble"></div>
+      <img id="mascot" class="mascot" alt="Mascote" />
+      <div id="bubble" class="mascot-bubble">Cada Tijolo Conta!</div>
     </div>
 
     <div class="hud">
@@ -153,122 +105,22 @@ body{
     </div>
   </div>
 
-  <!-- Tooltip genérico -->
-  <div id="tip" style="position:fixed;display:none;min-width:140px;max-width:60ch;background:#fff;border:1px solid #eee;border-radius:10px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9990;font-size:13px;line-height:1.25"></div>
-
-  <!-- FABs -->
-  <button class="fab" id="shareFab" title="Compartilhar">📣</button>
-  <button class="fab" id="fab" title="Opções">⚙️</button>
-
-  <!-- Painel (simplificado) -->
-  <aside class="drawer" id="drawer" aria-label="Opções do Tijolômetro">
-    <div class="head">
-      <strong>Opções</strong>
-      <button class="btn" id="closeDrawer">Fechar</button>
-    </div>
-    <div class="body">
-      <h4>Visual</h4>
-      <div class="row">
-        <label>Paleta</label>
-        <select id="optPalette">
-          <option value="brand5">Brand 5 (logo 5 cores)</option>
-          <option value="brand3">Brand 3 (azul/amarelo/vinho)</option>
-          <option value="brand2">Brand 2 (azul/amarelo)</option>
-        </select>
-      </div>
-      <div class="row">
-        <label><input type="checkbox" id="optAutoDensity" checked> Densidade automática</label>
-      </div>
-      <div class="row">
-        <label>Tamanho do tijolo</label>
-        <input type="range" id="optBrickPx" min="8" max="22" step="1" disabled>
-      </div>
-
-      <h4>Mascote</h4>
-      <div class="row"><label><input type="checkbox" id="optMascotOn" checked> Mostrar mascote</label></div>
-
-      <h4>Doadores</h4>
-      <div class="row"><label><input type="checkbox" id="optDonorsOn"> Tooltips de doadores</label></div>
-      <div class="small">Lê automaticamente da aba <b>TIJOLO_Respostas</b> (Forms):<br>• Mensagem: cabeçalho <b>“Texto do tijolo 1 (máx. 40)”</b><br>• Nome: 1ª coluna cujo cabeçalho contém “nome”</div>
-
-      <h4>Som</h4>
-      <div class="row"><label><input type="checkbox" id="optSoundOn"> Som ligado</label></div>
-      <div class="row">
-        <label>Trilha</label>
-        <select id="optTrack"></select>
-      </div>
-
-      <h4>Ações</h4>
-      <div class="row" style="justify-content:space-between">
-        <button class="btn" id="btnApply">Salvar & aplicar</button>
-        <button class="btn primary" id="btnRefresh">Atualizar agora</button>
-      </div>
-      <div class="row"><button class="btn" id="btnReset">Restaurar padrão</button></div>
-    </div>
-  </aside>
-
-  <!-- Share Sheet (seleção de mensagem) -->
-  <div class="modal" id="shareModal" aria-hidden="true">
-    <div class="sheet" role="dialog" aria-label="Compartilhar Tijolômetro">
-      <div class="head">
-        <strong>Compartilhar</strong>
-        <button class="btn" id="shareClose">Fechar</button>
-      </div>
-      <div class="opt"><input type="radio" name="tpl" id="tpl1" value="1">
-        <label for="tpl1"><b>#1</b> — Direto e caloroso<br>
-          <small>🧱 Famílias que Constroem – Associação de Pais do Colégio Luzeiros. Já chegamos a {PCT} da meta de {META}. Veja o Tijolômetro e participe: {LINK} 💛</small>
-        </label>
-      </div>
-      <div class="opt"><input type="radio" name="tpl" id="tpl2" value="2">
-        <label for="tpl2"><b>#2</b> — Convite<br>
-          <small>💛 Cada Tijolo Conta! A Associação de Pais do Colégio Luzeiros convida você a somar na campanha Famílias que Constroem. Estamos em {PCT} da meta ({META}). Participe: {LINK}</small>
-        </label>
-      </div>
-      <div class="opt"><input type="radio" name="tpl" id="tpl3" value="3">
-        <label for="tpl3"><b>#3</b> — Bem curto (WhatsApp)<br>
-          <small>🚧 Famílias que Constroem — Associação de Pais do Colégio Luzeiros. {PCT} da meta ({META}). Junte-se: {LINK} 🧱</small>
-        </label>
-      </div>
-      <div class="preview" id="sharePreview">Prévia…</div>
-      <div class="row">
-        <button class="btn" id="shareSetDefault">Usar como padrão</button>
-        <button class="btn primary" id="shareGo">Compartilhar</button>
-      </div>
-    </div>
-  </div>
+  <div id="devStatus" style="display:none"></div>
 
 <script>
 (function(){
-  // -------------------- IDs das planilhas --------------------
-  const FORMS_SHEET_ID = '1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I'; // <- DOADORES (Forms)
-  const PANEL_SHEET_ID = '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY'; // <- Tijolômetro (arrecadado/meta)
-
-  // -------------------- CONFIG + preferências --------------------
-  const qs = new URLSearchParams(location.search);
-  const DEFAULTS = {
-    sheetId: qs.get('sheet_id') || PANEL_SHEET_ID, // painel
-    sheetName: qs.get('sheet')  || 'Tijolometro',
-    range: qs.get('range')      || 'A1:D10',  // Rótulo / Valor / Início / Fim
-    logo:  qs.get('logo')       || 'logo.png',
-    palette: qs.get('palette')  || 'brand5',
-    cols: 120, rows: 72, brickPx: 0, gap: 1, pollMs: 30000,
-    mascotOn:true,
-
-    donorsOn:false,
-    donorsSheetId: FORMS_SHEET_ID,     // <- lido do Forms
-    donorsSheet: 'TIJOLO_Respostas',   // <- nome da aba
-    donorsRange: 'A1:Z1000',           // <- inclui cabeçalho na linha 1
-    formsMsgHeader: 'Texto do tijolo 1 (máx. 40)',
-
-    soundOn:false,
-    trackSrc:'', // será detectado
+  // IDs das planilhas (as que já vinham funcionando)
+  const PANEL_SHEET_ID = '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY'; // Arrecadado/Meta (A1:D10)
+  const CONFIG = {
+    sheetId: PANEL_SHEET_ID,
+    sheetName: 'Tijolometro',
+    range: 'A1:D10',
+    logo: 'logo.png',
+    palette: 'brand5',
+    cols: 120, rows: 72, gap: 1
   };
-  const PREFKEY='tj:settings';
-  function loadPrefs(){ try{return JSON.parse(localStorage.getItem(PREFKEY)||'{}')}catch{return{}} }
-  function savePrefs(p){ localStorage.setItem(PREFKEY, JSON.stringify(p)); }
-  const PREFS={...DEFAULTS, ...loadPrefs()};
 
-  // -------------------- elementos base --------------------
+  // Estado / elementos
   const gauge = document.getElementById('gauge');
   const maskEl = document.getElementById('mask');
   const ghostEl = document.getElementById('ghostLogo');
@@ -282,22 +134,37 @@ body{
     updated: document.getElementById('hudUpdated'),
     goalLabel: document.getElementById('hudGoalLabel')
   };
-  const tip = document.getElementById('tip');
+  const dev = document.getElementById('devStatus');
 
-  // estado para compartilhamento
-  const shareState = { raised:0, goal:0, pctText:'0%' };
-  const SHARE_PREF_KEY='tj:shareTpl';
-
-  // -------------------- utils --------------------
-  function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
-  function formatBRL(n){ try{ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
-  function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
-  const paintCanvas = document.createElement('canvas');
-  const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
   let logoImg=null, aspectSet=false, bricksFg=[], bricksBg=[], effCols, effRows, lastProgress=0;
   let _orderFg=[], _orderBg=[];
 
-  // -------------------- paleta --------------------
+  // Dev banner p/ erros
+  function devInfo(msg, isErr=false){
+    dev.textContent = msg;
+    dev.className = isErr ? 'err' : '';
+    dev.style.display = 'block';
+  }
+  window.onerror = function(msg, src, line, col, err){ devInfo('ERRO: '+msg, true); };
+
+  // Utilitários
+  function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
+  function formatBRL(n){ try{ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
+  function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+  function parseGVizDate(v){
+    if(!v) return null;
+    if (typeof v === 'string'){
+      // tenta padrão Date(YYYY,MM,DD)
+      let m = v.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
+      if(m) return new Date(Number(m[1]), Number(m[2]), Number(m[3])); // já é 0-based
+      // tenta números soltos
+      const p = v.match(/\d+/g);
+      if(p && p.length>=3) return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
+    }
+    return null;
+  }
+
+  // Paleta
   const PALETTES = {
     brand2:['#0A4AA6','#F2C035'],
     brand3:['#0A4AA6','#F2C035','#8B1E1E'],
@@ -311,10 +178,18 @@ body{
     for(const h of p){ const d=dist2(c,hex2rgb(h)); if(d<dBest){dBest=d;best=h} }
     return best;
   }
-  const makeSampler = (data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))); const yi=Math.max(0,Math.min(H-1,Math.round(y))); const i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]];};
+
+  // Canvas p/ amostrar cores do logo
+  const paintCanvas = document.createElement('canvas');
+  const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
+  const makeSampler = (data,W,H)=>(x,y)=>{
+    const xi=Math.max(0,Math.min(W-1,Math.round(x)));
+    const yi=Math.max(0,Math.min(H-1,Math.round(y)));
+    const i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]];
+  };
   const median = a => {const b=a.slice().sort((m,n)=>m-n); return b[Math.floor(b.length/2)]};
 
-  // -------------------- logo -> cores --------------------
+  // Logo
   function loadLogo(src){
     return new Promise((resolve)=>{
       const im = new Image();
@@ -329,35 +204,37 @@ body{
     if(ar>0) gauge.style.aspectRatio = `${ar} / 1`;
     aspectSet = true;
   }
+
   function colorizeBricks(){
     if(!logoImg) return;
     const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
     paintCanvas.width=W; paintCanvas.height=H; pctx.clearRect(0,0,W,H);
+    // desenha logo centralizado
     const ar=logoImg.naturalWidth/logoImg.naturalHeight; let dw=W, dh=W/ar; if(dh>H){dh=H; dw=H*ar}
     const dx=(W-dw)/2, dy=(H-dh)/2; pctx.drawImage(logoImg,dx,dy,dw,dh);
-    const buf=pctx.getImageData(0,0,W,H).data; const samp=makeSampler(buf,W,H);
+    const buf=pctx.getImageData(0,0,W,H).data;
+    const samp=makeSampler(buf,W,H);
     for(let i=0;i<bricksFg.length;i++){
       const f=bricksFg[i], b=bricksBg[i], x=f._x, y=f._y, w=f._w, h=f._h;
       const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
       const rs=[],gs=[],bs=[],as=[]; for(const [px,py] of pts){ const d=samp(px,py); rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]); }
       const A=median(as), ff=f.querySelector('.fill'), bf=b.querySelector('.fill');
       if (A<100){ ff.style.background='transparent'; bf.style.opacity='1'; }
-      else{ const r=median(rs), g=median(gs), bb=median(bs); ff.style.background=mapToPalette(r,g,bb, PREFS.palette); bf.style.opacity='0'; }
+      else{ const r=median(rs), g=median(gs), bb=median(bs); ff.style.background=mapToPalette(r,g,bb, CONFIG.palette); bf.style.opacity='0'; }
     }
   }
 
-  // -------------------- layout --------------------
+  // Grade de tijolos
   function buildOrder(rows,cols){ const of=[],ob=[]; for(let r=rows-1;r>=0;r--){ for(let c=0;c<cols;c++){ const i=r*cols+c; of.push(bricksFg[i]); ob.push(bricksBg[i]); } } return [of,ob]; }
   function layoutBricks(){
-    ensureAspectFromLogo(); const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
-    if (PREFS.brickPx>0){ const bw=PREFS.brickPx,bh=Math.round(bw*0.6); effCols=Math.max(20,Math.floor((W-PREFS.gap)/(bw+PREFS.gap))); effRows=Math.max(12,Math.floor((H-PREFS.gap)/(bh+PREFS.gap))); }
-    const cols=(typeof effCols==='number'&&effCols>0)? effCols : PREFS.cols;
-    const rows=(typeof effRows==='number'&&effRows>0)? effRows : PREFS.rows;
-    const gap=PREFS.gap;
+    ensureAspectFromLogo();
+    const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
+    const cols=CONFIG.cols, rows=CONFIG.rows, gap=CONFIG.gap;
     let brickW=Math.floor((W-(cols+1)*gap)/cols); if(brickW<2) brickW=2;
     let offset=Math.floor(brickW/2), gridWEven=cols*brickW+(cols+1)*gap, gridWOdd=gridWEven+offset;
     if(gridWOdd>W){ const extra=gridWOdd-W, reduce=Math.ceil(extra/cols); brickW=Math.max(2,brickW-reduce); offset=Math.floor(brickW/2); gridWEven=cols*brickW+(cols+1)*gap; gridWOdd=gridWEven+offset; }
-    const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows)); const gridWMax=Math.max(gridWEven,gridWOdd); const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
+    const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows));
+    const gridWMax=Math.max(gridWEven,gridWOdd); const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
     const total=rows*cols;
     if(bricksFg.length!==total){
       bricksFgEl.innerHTML=''; bricksBgEl.innerHTML=''; bricksFg=[]; bricksBg=[];
@@ -376,12 +253,9 @@ body{
     colorizeBricks(); applyProgress(lastProgress);
   }
 
-  // -------------------- progresso --------------------
   function applyProgress(p){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
-    const cols=(typeof effCols==='number'&&effCols>0)? effCols : PREFS.cols;
-    const rows=(typeof effRows==='number'&&effRows>0)? effRows : PREFS.rows;
-    [_orderFg, _orderBg] = buildOrder(rows,cols);
+    [_orderFg, _orderBg] = buildOrder(CONFIG.rows, CONFIG.cols);
     const total=_orderFg.length; if(!total) return;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
     for(let i=0;i<total;i++){
@@ -393,13 +267,12 @@ body{
       const fF=_orderFg[filled].querySelector('.fill'), fB=_orderBg[filled].querySelector('.fill'); const percent=Math.round(frac*100)+'%';
       _orderFg[filled].classList.add('partial'); fF.style.width=percent; _orderBg[filled].classList.add('partial'); fB.style.width=percent;
     }
-    if (window._hookAfterApplyProgress) window._hookAfterApplyProgress({filled,total});
   }
 
-  // -------------------- Sheets (painel) --------------------
+  // Sheets (painel)
   async function fetchProgress(){
-    const base=`https://docs.google.com/spreadsheets/d/${PREFS.sheetId}/gviz/tq`;
-    const params=new URLSearchParams({ tqx:'out:json', sheet:PREFS.sheetName, range:PREFS.range, t:Date.now()+'' });
+    const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
+    const params=new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.range, t:Date.now()+'' });
     try{
       const res=await fetch(`${base}?${params}`,{ cache:'no-store' }); const txt=await res.text();
       const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); const data=JSON.parse(m[1]); const rows=data.table.rows||[];
@@ -409,20 +282,27 @@ body{
 
       const today = new Date(); today.setHours(0,0,0,0);
       let activeGoal=0, activeLabel='Meta';
+
       for (const r of rows){
         const label=r.c?.[0]?.v?.toString().trim();
         if(!label || label.toLowerCase()==='arrecadado') continue;
         const goal=Number(r.c?.[1]?.v || 0);
         const s=r.c?.[2]?.v, e=r.c?.[3]?.v;
         if(s && e){
-          const S=new Date(...s.match(/\d+/g).map(Number));
-          const E=new Date(...e.match(/\d+/g).map(Number));
-          if(today>=S && today<=E){ activeGoal=goal; activeLabel=label; break; }
+          const S=parseGVizDate(s), E=parseGVizDate(e);
+          if(S && E && today>=S && today<=E){ activeGoal=goal; activeLabel=label; break; }
         }
       }
-      if(!activeGoal && rows.length>1){ const r=rows[1]; activeLabel=r.c?.[0]?.v?.toString().trim()||'Meta'; activeGoal=Number(r.c?.[1]?.v||0); }
+      if(!activeGoal && rows.length>1){
+        // pega a primeira linha “de meta” depois do arrecadado
+        const firstGoalRow = rows.find(r => (r.c?.[0]?.v||'').toString().trim().toLowerCase()!=='arrecadado');
+        if(firstGoalRow){
+          activeLabel = (firstGoalRow.c?.[0]?.v||'').toString().trim() || 'Meta';
+          activeGoal  = Number(firstGoalRow.c?.[1]?.v || 0);
+        }
+      }
 
-      const p=activeGoal>0 ? raised/activeGoal : 0;
+      const p=activeGoal>0 ? (raised/activeGoal) : 0;
       applyProgress(p);
 
       hud.raised.textContent = formatBRL(raised);
@@ -431,320 +311,40 @@ body{
       hud.pct.textContent    = Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',')+'%';
       hud.updated.textContent= new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
 
-      // share state
-      shareState.raised = raised; shareState.goal = activeGoal; shareState.pctText = hud.pct.textContent;
-
+      devInfo('JS OK');
     }catch(e){
       console.error('Planilha painel:', e);
+      devInfo('ERRO ao buscar planilha (ver console).', true);
       if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; }
     }
   }
 
-  // -------------------- Doadores (Forms) --------------------
-  let donors=[];
-  function firstName(n){ if(!n) return ''; const p=n.trim().split(/\s+/); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
-  function formatName(n){ return n? firstName(n) : 'Doação recebida'; }
+  // Mascote (opcional) — aparece se imagem existir
+  (function bootMascot(){
+    const img = document.getElementById('mascot');
+    const bubble = document.getElementById('bubble');
+    const candidates = ['Tio_Jolinho_tijolo.png','Tio_Jolinho_carrinho.png','Tio_Jolinho_martelo.png','mascot.png','mascote.png'];
+    (function tryNext(list){
+      const src=list.shift(); if(!src){ img.style.display='none'; return; }
+      const probe=new Image();
+      probe.onload=()=>{ img.src=src+'?v='+Date.now(); img.style.display='block'; };
+      probe.onerror=()=>tryNext(list);
+      probe.src=src+'?v='+Date.now();
+    })(candidates.slice());
 
-  async function fetchGVizById(sheetId, sheet, range){
-    const base=`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq`;
-    const params=new URLSearchParams({tqx:'out:json',sheet,range,t:Date.now()+''});
-    const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
-    const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); return JSON.parse(m[1]).table;
-  }
-
-  async function fetchDonors(){
-    donors=[];
-    if(!PREFS.donorsOn) return;
-    try{
-      const table=await fetchGVizById(PREFS.donorsSheetId, PREFS.donorsSheet, PREFS.donorsRange);
-      const rows=table.rows||[]; if(!rows.length) return;
-
-      const headers=(rows[0].c||[]).map(c=>(c?.v||'').toString().trim());
-      const idxMsg  = headers.findIndex(h => h.trim().toLowerCase() === PREFS.formsMsgHeader.trim().toLowerCase());
-      const idxName = headers.findIndex(h => /nome/i.test(h));
-      const idxVal  = headers.findIndex(h => /valor|doa(ç|c)ao|r\$/i.test(h));
-
-      for(let i=1;i<rows.length;i++){
-        const c=rows[i].c||[];
-        const name = idxName>=0 ? (c[idxName]?.v||'').toString() : '';
-        const msg  = idxMsg >=0 ? (c[idxMsg ]?.v||'').toString() : '';
-        const val  = idxVal >=0 ? Number(c[idxVal]?.v||0) : 0;
-        if(name || msg || val) donors.push({name,msg,value:val});
-      }
-    }catch(e){ console.warn('Doadores (Forms):', e); donors=[];
-    }
-  }
-
-  function assignDonorsToFilled(filled){
-    if(!PREFS.donorsOn || donors.length===0) return;
-    for(let i=0;i<_orderFg.length;i++){
-      const brick=_orderFg[i];
-      if(i<filled) brick._donor = donors[i % donors.length];
-      else brick._donor = null;
-    }
-  }
-
-  // Tooltip
-  const tip = document.getElementById('tip');
-  bricksFgEl.addEventListener('click', onBrickTap, {passive:true});
-  bricksFgEl.addEventListener('touchstart', onBrickTap, {passive:true});
-  function onBrickTap(e){
-    const b=e.target.closest('.brick'); if(!b) return;
-    const rect=b.getBoundingClientRect();
-    const donor=b._donor;
-    let html='';
-    if(PREFS.donorsOn && donor){
-      html = `<b>${formatName(donor.name)}</b>` + (donor.msg?`<div>${donor.msg}</div>`:'') + (donor.value?`<div class="mini">${formatBRL(donor.value)}</div>`:'');
-    }else{
-      html = `<b>Obrigado!</b><div class="mini">Cada tijolo conta 💛</div>`;
-    }
-    tip.innerHTML=html; tip.style.display='block';
-    const left=Math.min(Math.max(8,rect.left+rect.width/2), innerWidth-160), top=Math.max(8,rect.top-12);
-    tip.style.left=left+'px'; tip.style.top=top+'px';
-    clearTimeout(onBrickTap._t); onBrickTap._t=setTimeout(()=> tip.style.display='none', 2200);
-  }
-
-  // -------------------- Mascote --------------------
-  const mascotImg = document.getElementById('mascotImg');
-  const mascotBubble = document.getElementById('mascotBubble');
-  const MASCOT_CANDIDATES = ['mascot.png','mascote.png','Tio_Jolinho_tijolo.png','Tio_Jolinho_carrinho.png','Tio_Jolinho_martelo.png','Sr._Construtino_colher.png','Lumininha_trena.png'];
-
-  function pickFirstExisting(srcs){
-    return new Promise(resolve=>{
-      const next=()=>{
-        const src=srcs.shift(); if(!src) return resolve(null);
-        const im=new Image();
-        im.onload = ()=>resolve(src);
-        im.onerror= next;
-        im.src = src + '?v=' + Date.now();
-      }; next();
+    img.addEventListener('click', ()=>{
+      img.classList.remove('wave'); void img.offsetWidth; img.classList.add('wave');
+      bubble.textContent='Cada Tijolo Conta!'; bubble.classList.add('show');
+      clearTimeout(bootMascot._t); bootMascot._t=setTimeout(()=>bubble.classList.remove('show'), 1600);
     });
-  }
-  async function bootMascote(){
-    if(!PREFS.mascotOn){ mascotImg.style.display='none'; return; }
-    const chosen=await pickFirstExisting(MASCOT_CANDIDATES.slice());
-    if(!chosen){ mascotImg.style.display='none'; return; }
-    mascotImg.src = chosen + '?v=' + Date.now();
-    mascotImg.style.display='block';
-    mascotImg.classList.add('bob');
-  }
-  function say(text,ms=1800){
-    if(!mascotBubble) return; mascotBubble.textContent=text; mascotBubble.classList.add('show');
-    clearTimeout(say._t); say._t=setTimeout(()=>mascotBubble.classList.remove('show'),ms);
-  }
-  mascotImg.addEventListener('click', ()=>{
-    mascotImg.classList.remove('wave'); void mascotImg.offsetWidth; mascotImg.classList.add('wave');
-    say('Cada Tijolo Conta!');
-    throwCuteBrick();
-    if (audioState.on) ensureAudioPlays();
-  });
+  })();
 
-  function throwCuteBrick(){
-    try{
-      const rm=mascotImg.getBoundingClientRect();
-      const sx = rm.left + rm.width*0.20, sy = rm.top + rm.height*0.66;
-      const ex = sx + 80, ey = sy - 120;
-      const flying=document.createElement('div');
-      flying.className='throw-brick';
-      flying.style.left=sx+'px'; flying.style.top=sy+'px';
-      flying.style.width='22px'; flying.style.height='14px';
-      document.body.appendChild(flying);
-      flying.animate([
-        { transform:'translate(0,0) scale(.9)', opacity:.95 },
-        { transform:`translate(${ex-sx}px, ${ey-sy}px) scale(1)`, opacity:1 },
-        { transform:`translate(${ex-sx+20}px, ${ey-sy+40}px) scale(.95)`, opacity:.0 }
-      ],{ duration:750, easing:'ease-out' }).onfinish=()=>flying.remove();
-    }catch{}
-  }
-
-  // animação somente quando AUMENTAR
-  let _prevFilled=null,_ready=false;
-  window._hookAfterApplyProgress = function({filled,total}){
-    assignDonorsToFilled(filled);
-    if(_prevFilled===null){ _prevFilled=filled; _ready=true; return; }
-    if(!_ready){ _ready=true; _prevFilled=filled; return; }
-    if(filled>_prevFilled){
-      const count=Math.min(filled-_prevFilled, 3);
-      for(let i=0;i<count;i++) throwCuteBrick();
-      say('Chegou tijolo novo! 🧱', 1600);
-      if (audioState.on) ensureAudioPlays();
-    }
-    _prevFilled=filled;
-  };
-
-  // -------------------- Som (prioriza cada_tijolo_conta.*) --------------------
-  const audioCandidates = [
-    'cada_tijolo_conta.m4a','cada_tijolo_conta.mp3',   // <- prioridade
-    'trilha1.m4a','trilha1.mp3',
-    'trilha2.m4a','trilha2.mp3',
-    'Cada_Tijolo_Conta.m4a','Cada_Tijolo_Conta.mp3',
-    'cada-tijolo-conta!_ext_completa.m4a','cada-tijolo-conta!_ext_completa.mp3',
-    'cada-tijolo-conta!_6.m4a','cada-tijolo-conta!_6.mp3'
-  ];
-  const audioState = { on: !!PREFS.soundOn, track: PREFS.trackSrc || '', el: null, found: [] };
-
-  async function detectTracks(){
-    const test = (src)=> new Promise(res=>{
-      const a=new Audio(); a.preload='metadata';
-      a.oncanplaythrough=()=>res(src);
-      a.onerror=()=>res(null);
-      a.src=src+'?v='+Date.now();
-    });
-    const results = await Promise.all(audioCandidates.map(test));
-    audioState.found = results.filter(Boolean);
-    if(!audioState.track || !audioState.found.includes(audioState.track)) audioState.track = audioState.found[0]||'';
-    buildTrackSelect();
-    if(audioState.on && audioState.track) ensureAudioPlays();
-  }
-
-  function ensureAudioPlays(){
-    try{
-      if(!audioState.track){ stopAudio(); return; }
-      if(!audioState.el){
-        audioState.el = new Audio();
-        audioState.el.loop=true;
-        audioState.el.volume=0.35;
-      }
-      if(!audioState.el.src || audioState.el.src.indexOf(audioState.track)===-1){
-        audioState.el.src = audioState.track+'?v='+Date.now();
-      }
-      audioState.el.play().catch(()=>{/* precisa de gesto do usuário */});
-    }catch{}
-  }
-  function stopAudio(){ try{ if(audioState.el){ audioState.el.pause(); } }catch{} }
-
-  // -------------------- Painel --------------------
-  const fab=document.getElementById('fab'), drawer=document.getElementById('drawer'), closeDrawer=document.getElementById('closeDrawer');
-  const optPalette=document.getElementById('optPalette'), optAutoDensity=document.getElementById('optAutoDensity'), optBrickPx=document.getElementById('optBrickPx');
-  const optMascotOn=document.getElementById('optMascotOn');
-  const optDonorsOn=document.getElementById('optDonorsOn');
-  const optSoundOn=document.getElementById('optSoundOn'), optTrack=document.getElementById('optTrack');
-  const btnApply=document.getElementById('btnApply'), btnRefresh=document.getElementById('btnRefresh'), btnReset=document.getElementById('btnReset');
-
-  function buildTrackSelect(){
-    optTrack.innerHTML='';
-    audioState.found.forEach(src=>{
-      const o=document.createElement('option'); o.value=src; o.textContent=src; optTrack.appendChild(o);
-    });
-    if(audioState.track){ optTrack.value = audioState.track; }
-  }
-
-  function syncControls(){
-    optPalette.value = PREFS.palette;
-    optAutoDensity.checked = PREFS.brickPx===0; optBrickPx.disabled = optAutoDensity.checked;
-    optBrickPx.value = PREFS.brickPx || 14;
-
-    optMascotOn.checked = PREFS.mascotOn;
-    optDonorsOn.checked = PREFS.donorsOn;
-
-    optSoundOn.checked = PREFS.soundOn;
-    buildTrackSelect();
-  }
-
-  fab.onclick = ()=> drawer.classList.add('open');
-  closeDrawer.onclick = ()=> drawer.classList.remove('open');
-
-  btnApply.onclick = async ()=>{
-    PREFS.palette = optPalette.value;
-    PREFS.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
-    PREFS.mascotOn = !!optMascotOn.checked;
-    PREFS.donorsOn = !!optDonorsOn.checked;
-    PREFS.soundOn = !!optSoundOn.checked;
-    PREFS.trackSrc = optTrack.value || '';
-
-    savePrefs(PREFS);
-
-    colorizeBricks(); layoutBricks(); await fetchDonors(); await fetchProgress(); await bootMascote();
-    if(PREFS.soundOn){ audioState.on=true; audioState.track=PREFS.trackSrc; ensureAudioPlays(); }
-    else { audioState.on=false; stopAudio(); }
-    drawer.classList.remove('open');
-  };
-  btnRefresh.onclick = ()=>{ fetchProgress(); fetchDonors(); };
-  btnReset.onclick = ()=>{
-    Object.keys(PREFS).forEach(k=>delete PREFS[k]); Object.assign(PREFS, DEFAULTS);
-    savePrefs(PREFS); syncControls(); colorizeBricks(); layoutBricks(); fetchDonors(); fetchProgress(); bootMascote();
-    if(PREFS.soundOn){ audioState.on=true; audioState.track=PREFS.trackSrc; ensureAudioPlays(); } else { audioState.on=false; stopAudio(); }
-  };
-
-  optAutoDensity.addEventListener('change',()=>{ optBrickPx.disabled=optAutoDensity.checked; });
-
-  // -------------------- Compartilhar (template #2 como padrão) --------------------
-  const shareFab = document.getElementById('shareFab');
-  const shareModal = document.getElementById('shareModal');
-  const shareClose = document.getElementById('shareClose');
-  const sharePreview = document.getElementById('sharePreview');
-  const shareGo = document.getElementById('shareGo');
-  const shareSetDefault = document.getElementById('shareSetDefault');
-
-  function buildShareText(tplId){
-    const LINK = location.href;
-    const META = formatBRL(shareState.goal);
-    const PCT  = shareState.pctText;
-    if(tplId==='2'){
-      return `💛 Cada Tijolo Conta! A Associação de Pais do Colégio Luzeiros convida você a somar na campanha Famílias que Constroem.
-Estamos em ${PCT} da meta (${META}). Participe: ${LINK}`;
-    }else if(tplId==='3'){
-      return `🚧 Famílias que Constroem — Associação de Pais do Colégio Luzeiros.
-${PCT} da meta (${META}). Junte-se: ${LINK} 🧱`;
-    }
-    return `🧱 Famílias que Constroem – Associação de Pais do Colégio Luzeiros.
-Já chegamos a ${PCT} da meta de ${META}.
-Veja o Tijolômetro e participe: ${LINK} 💛`;
-  }
-  function openShareSheet(){
-    const last = localStorage.getItem(SHARE_PREF_KEY) || '2'; // <- padrão #2
-    (document.getElementById('tpl'+last) || document.getElementById('tpl2')).checked = true;
-    updateSharePreview();
-    shareModal.classList.add('show');
-    shareModal.setAttribute('aria-hidden','false');
-  }
-  function closeShareSheet(){
-    shareModal.classList.remove('show');
-    shareModal.setAttribute('aria-hidden','true');
-  }
-  function updateSharePreview(){
-    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '2';
-    sharePreview.textContent = buildShareText(sel);
-  }
-
-  shareFab.addEventListener('click', openShareSheet);
-  shareClose.addEventListener('click', closeShareSheet);
-  document.getElementById('tpl1').addEventListener('change', updateSharePreview);
-  document.getElementById('tpl2').addEventListener('change', updateSharePreview);
-  document.getElementById('tpl3').addEventListener('change', updateSharePreview);
-
-  shareSetDefault.addEventListener('click', ()=>{
-    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '2';
-    localStorage.setItem(SHARE_PREF_KEY, sel);
-    shareSetDefault.textContent = 'Padrão salvo ✓';
-    setTimeout(()=> shareSetDefault.textContent='Usar como padrão', 1400);
-  });
-
-  shareGo.addEventListener('click', async ()=>{
-    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '2';
-    const text = buildShareText(sel);
-    try{
-      if(navigator.share){
-        await navigator.share({title:'Cada Tijolo Conta', text, url: location.href});
-      }else{
-        const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        window.open(wa, '_blank');
-      }
-    }catch{} finally{
-      closeShareSheet();
-    }
-  });
-
-  // -------------------- Boot --------------------
-  window.addEventListener('resize', debounce(layoutBricks, 120));
+  // Boot
+  window.addEventListener('resize', debounce(layoutBricks,120));
   window.addEventListener('orientationchange', ()=> setTimeout(layoutBricks,150));
-
-  loadLogo(DEFAULTS.logo).then(ok=>{ if(ok){ ensureAspectFromLogo(); layoutBricks(); } });
-  fetchDonors();
+  loadLogo(CONFIG.logo).then(ok=>{ if(ok){ ensureAspectFromLogo(); layoutBricks(); } });
   fetchProgress();
-  (async()=>{ await bootMascote(); await detectTracks(); })();
-
-  setInterval(fetchProgress, DEFAULTS.pollMs);
+  setInterval(fetchProgress, 30000);
 })();
 </script>
 </body>
