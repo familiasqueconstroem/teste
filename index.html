@@ -18,11 +18,11 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
   padding:16px;display:flex;flex-direction:column;gap:16px;animation:fadeIn .5s ease-out}
 .gauge{position:relative;width:100%;border-radius:14px;overflow:hidden;background:#F7EFE7;min-height:300px}
 .ghost-logo{position:absolute;inset:var(--pad);width:calc(100% - (var(--pad) * 2));height:calc(100% - (var(--pad) * 2));
-  margin:auto;object-fit:contain;opacity:var(--ghost);filter:grayscale(1) sepia(1) brightness(1.5)}
-.bricks-bg{position:absolute;inset:0}
+  margin:auto;object-fit:contain;opacity:var(--ghost);filter:grayscale(1) sepia(1) brightness(1.5); z-index:30; pointer-events:none}
+.bricks-bg{position:absolute;inset:0; z-index:4}
 .mask-layer{position:absolute;inset:0;background:transparent;--mask:url('logo.png');
   -webkit-mask-image:var(--mask);mask-image:var(--mask);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
-  -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain}
+  -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain; z-index:8}
 .bricks{position:relative;width:100%;height:100%}
 .brick{position:absolute;background:var(--grout);border-radius:2px;overflow:hidden;box-shadow: inset 0 0 0 var(--joint) var(--grid)}
 .brick .fill{position:absolute;inset:0;width:0%;height:100%;background:var(--brick-bg-color);transition:width .35s ease}
@@ -47,7 +47,7 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .alert b{display:block;margin-bottom:4px}
 
 /* Mascote (opcional) */
-.mascot{position:absolute;left:0;top:0;z-index:20;pointer-events:none;display:none;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.mascot{position:absolute;left:0;top:0;z-index:40;pointer-events:none;display:none;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .mascot img{display:block;width:110px;height:auto}
 .carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
 
@@ -96,6 +96,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 .btn.primary{background:#0A4AA6;color:#fff;border-color:#0A4AA6}
 .small{font-size:12px;color:#666}
 .small.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+.debug-row{opacity:0.7}
 </style>
 </head>
 <body>
@@ -144,7 +145,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       </div>
       <div class="row" style="margin-top:8px">
         <label style="min-width:110px">Tamanho do tijolo:</label>
-        <input id="optBrickPx" class="slider" type="range" min="8" max="22" step="1">
+        <input id="optBrickPx" class="slider" type="range" min="8" max="40" step="1">
         <label><input id="optAutoDensity" type="checkbox"> Auto</label>
       </div>
 
@@ -197,7 +198,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       <h4>Ações</h4>
       <div class="row">
         <button class="btn" id="btnRefresh">Atualizar agora</button>
-        <button class="btn" id="btnSimulate">Simular +2%</button>
+        <button class="btn" id="btnSimulate">Simular 100%</button>
       </div>
       <div class="row" style="margin-top:8px">
         <button class="btn primary" id="btnCopyLink">Copiar link com estas opções</button>
@@ -297,14 +298,15 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const pctx=paintCanvas.getContext('2d',{willReadFrequently:true});
   let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,lastFilled=0,donors=[];
   let firstApplyDone=false; // para tirar animações no primeiro paint
+  let lastGoalValue=0, lastRaisedValue=0; // para permitir simulação visual
 
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
-  function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
+  function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
   function tweenNumber(el,to,fmt,ms=600){ const from=Number((el.textContent||'0').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;
     const t0=performance.now(); (function f(t){const k=Math.min(1,(t-t0)/ms);el.textContent=fmt(from+(to-from)*k); if(k<1)requestAnimationFrame(f)})(t0); }
   function firstName(n){ if(!n) return ''; const p=n.trim().split(/\s+/); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
-  function formatName(n){ if(CONFIG.namesMode==='off')return 'Doação recebida'; if(CONFIG.namesMode==='full')return n||'Doação recebida'; return firstName(n||''); }
+  function formatName(n){ if(CONFIG.namesMode==='off') return ''; if(CONFIG.namesMode==='full') return n||''; return firstName(n||''); }
 
   function loadLogo(src){ return new Promise(res=>{ const im=new Image();
     im.onload=()=>{logoImg=im;ghostEl.src=im.src;setMaskImage(im.src);alertBox.style.display='none';res(true)};
@@ -442,8 +444,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const brick=e.target.closest('.brick'); if(!brick||!bricksFgEl.contains(brick)) return;
     const donor=brick._donor;
     const r=brick.getBoundingClientRect();
-    const donorTitle = (CONFIG.donorsOn && donor && (donor.name || donor.msg))
-      ? `<b>${donor.name ? formatName(donor.name) : 'Famílias que Constroem'}</b>` : `<b>Obrigado!</b>`;
+    let donorTitle;
+    if (CONFIG.namesMode === 'off') {
+      donorTitle = `<b>Obrigado!</b>`;
+    } else {
+      donorTitle = (CONFIG.donorsOn && donor && (donor.name || donor.msg))
+        ? `<b>${donor.name ? (CONFIG.namesMode==='full' ? donor.name : formatName(donor.name)) : 'Famílias que Constroem'}</b>`
+        : `<b>Obrigado!</b>`;
+    }
     const html = (CONFIG.donorsOn && donor)
       ? `${donorTitle}${donor.msg?`<div>${donor.msg}</div>`:''}<div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Cada tijolo conta 💛'}</div>`
       : `<b>Obrigado!</b><div class="mini">Cada tijolo conta 💛</div>`;
@@ -469,7 +477,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     return null;
   }
 
-  // --- SUA lógica de valores (inalterada) ---
+  // --- SUA lógica de valores (inalterada, com tracking de lastGoal/lastRaised) ---
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
     const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
@@ -489,6 +497,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       if(!active) active=campaigns.find(c=>c.goal>0) || {label:'Meta',goal:0};
       const goal=Number(active.goal||0);
       const pRaw=goal>0 ? (raised/goal) : 0; const p=Math.max(0,Math.min(1,pRaw));
+
+      // store global last knowns for simulation
+      lastGoalValue = goal;
+      lastRaisedValue = raised;
 
       applyProgress(p);
       tweenNumber(hud.raised, raised, n=>formatBRL(n)); tweenNumber(hud.goal, goal, n=>formatBRL(n));
@@ -545,6 +557,11 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       let colIdx = headerCanon.findIndex(h => h === wanted);
       if (colIdx === -1) colIdx = headerCanon.findIndex(h => h.includes(wanted) || wanted.includes(h));
 
+      // tenta encontrar coluna de nome por heurística
+      const nameCandidates = ['nome','nome completo','nome do doador','nome do responsavel','name'];
+      let nameIdx = headerCanon.findIndex(hc => nameCandidates.some(cand => hc.includes(cand)));
+      if (nameIdx === -1) nameIdx = -1; // continua -1 se não achar
+
       if (colIdx === -1){
         donors=[];
         dbgDonors.textContent='cabeçalho não encontrado';
@@ -555,7 +572,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
           const r = rows[i]; if(!r || !r.c) continue;
           const cell = r.c[colIdx];
           const v = (cell?.v ?? cell?.f ?? '').toString().trim();
-          if (v) out.push({ name:'', msg:v, value:0 });
+          if (v){
+            // extrai nome se possível
+            let name = '';
+            if (nameIdx >= 0 && r.c[nameIdx]){
+              name = (r.c[nameIdx]?.v ?? r.c[nameIdx]?.f ?? '').toString().trim();
+            }
+            out.push({ name: name||'', msg: v, value: 0 });
+          }
         }
         donors = out;
         dbgDonors.textContent = 'carregados: ' + donors.length;
@@ -598,6 +622,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     CONFIG.namesMode = optNamesMode.value;
     CONFIG.hudOff = !optHudOn.checked;
 
+    // se trocou para auto density, força recálculo completo
+    if (CONFIG.brickPx === 0) { effCols = undefined; effRows = undefined; }
+    else { effCols = undefined; effRows = undefined; } // também recalc quando brickPx manual
+
     if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
     setMascotByAnchor();
     colorizeBricks(); layoutBricks();
@@ -630,10 +658,17 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   };
 
   btnSimulate.onclick = ()=> {
+    // Simula 100% do objetivo (temporário)
     if (pollId) { clearInterval(pollId); pollId = null; }
-    const p = Math.min(1, lastProgress + 0.02);
+    const p = 1;
     applyProgress(p);
-    hud.pct.textContent = (p*100).toFixed(1).replace('.',',') + '%';
+    // exibe valor simulado com base na última meta conhecida
+    if (lastGoalValue && lastGoalValue > 0) {
+      hud.pct.textContent = '100,0%';
+      tweenNumber(hud.raised, lastGoalValue, n=>formatBRL(n));
+    } else {
+      hud.pct.textContent = '100,0%';
+    }
     setTimeout(()=> startPolling(), 6000);
   };
 
