@@ -1,3 +1,9 @@
+perfeito — mantive o mesmo layout que você postou e apliquei só duas mudanças cirúrgicas:
+	1.	Acabar com a “linha de tijolos voando” no primeiro carregamento (desliga a transição só no paint inicial e evita a animação do mascote no 1º apply).
+	2.	Tooltips de doadores puxando da planilha do Forms (aba TIJOLO_Respostas, coluna I a partir de I2). Também inclui o CSS do tooltip (estava faltando).
+
+Cole o arquivo inteiro abaixo como index.html (substitui o atual):
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -28,6 +34,9 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .brick .fill{position:absolute;inset:0;width:0%;height:100%;background:var(--brick-bg-color);transition:width .35s ease}
 .brick.filled .fill{width:100%}
 
+/* desliga transição só no 1º paint (evita “tijolos voando”) */
+.no-anim .brick .fill{transition:none !important}
+
 .hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fdfdfd;font-variant-numeric:tabular-nums;align-items:center}
 .hud .item{display:flex;flex-direction:column;gap:2px}
 .hud .label{font-size:12px;color:#666}.hud .value{font-size:20px;font-weight:800}.hud .pct{font-weight:900}
@@ -35,9 +44,17 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 @media (max-width:740px){.hud{grid-template-columns:repeat(2,minmax(0,1fr))}.hud .updated{grid-column:1/-1;justify-self:start;text-align:left}}
 .alert{position:absolute;left:14px;top:14px;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:8px 10px;border-radius:10px;font-size:12px;display:none}
 .alert b{display:block;margin-bottom:4px}
+
+/* tooltip de doadores */
+#tip{position:fixed;z-index:9997;background:#fff;border:1px solid #ddd;padding:8px 10px;border-radius:10px;
+  box-shadow:0 8px 20px rgba(0,0,0,.15);font-size:13px;max-width:60vw;display:none}
+#tip .mini{font-size:11px;color:#666;margin-top:6px}
+
+/* Mascote */
 .mascot{position:absolute;left:0;top:0;z-index:20;pointer-events:none;display:none;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .mascot img{display:block;width:110px;height:auto}
 .carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
+
 body.embed{background:transparent}.hud.hidden{display:none}
 
 /* -------- Painel de Controles -------- */
@@ -169,7 +186,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const DEFAULTS={
     sheetId:'1-_J2DwVSn7LULB55YVPCHQsQ-PRfZYt8oDJhepdXYFY',
     sheetName:'Tijolometro', range:'A1:D10',
-    donorsOn:false, donorsSheet:'Doadores', donorsRange:'A2:C2000', namesMode:'first',
+
+    /* Doadores vindos do FORMS (aba TIJOLO_Respostas, coluna I a partir de I2) */
+    donorsOn:false,
+    donorsSheetId:'1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I',
+    donorsSheet:'TIJOLO_Respostas',
+    donorsRange:'I2:I10000',
+    namesMode:'first',
+
     logo:'logo.png', cols:120, rows:72, brickPx:0, targetBricks:0, gap:1,
     pollMs:30000, pad:0, grout:'', joint:'', ghost:'', palette:'brand3',
     embed:false, hudOff:false,
@@ -187,7 +211,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }))}
   function toKey(k){return ({
     'sheet_id':'sheetId','sheet':'sheetName','range':'range',
-    'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','names':'namesMode',
+    'donors':'donorsOn','donors_sheet_id':'donorsSheetId','donors_sheet':'donorsSheet','donors_range':'donorsRange','names':'namesMode',
     'logo':'logo','cols':'cols','rows':'rows','brick_px':'brickPx','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
     'embed':'embed','hud':'hudOn','target_bricks':'targetBricks','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion'
   }[k]||k)}
@@ -198,6 +222,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   if (CONFIG.joint) document.documentElement.style.setProperty('--joint', CONFIG.joint+'px');
   if (CONFIG.ghost) document.documentElement.style.setProperty('--ghost', CONFIG.ghost);
   if (CONFIG.embed) document.body.classList.add('embed');
+
+  // desliga transições no 1º paint
+  document.body.classList.add('no-anim');
+  let initializing = true; // evita animação do mascote na 1ª aplicação
 
   /* ---------- elementos ---------- */
   const gauge=document.getElementById('gauge'), maskEl=document.getElementById('mask'),
@@ -294,6 +322,11 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
         const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
         const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } }
     buildOrder(rows,cols); colorizeBricks(); applyProgress(lastProgress); if(CONFIG.mascot) placeMascot();
+
+    /* vincula doadores aos tijolos quando redesenha grade */
+    if (CONFIG.donorsOn && donors.length){
+      for (let i=0;i<_orderFg.length;i++){ _orderFg[i]._donor = donors[i % donors.length]; }
+    }
   }
 
   function applyProgress(p){
@@ -303,7 +336,16 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     for(let i=0;i<total;i++){ const fF=of[i].querySelector('.fill'), fB=ob[i].querySelector('.fill'); of[i].classList.remove('filled','partial'); fF.style.width='0%'; ob[i].classList.remove('filled','partial'); fB.style.width='0%';
       if(i<filled){ of[i].classList.add('filled'); fF.style.width='100%'; ob[i].classList.add('filled'); fB.style.width='100%'; } }
     if(filled<total){ const fF=of[filled].querySelector('.fill'), fB=ob[filled].querySelector('.fill'); const percent=Math.round(frac*100)+'%'; of[filled].classList.add('partial'); fF.style.width=percent; ob[filled].classList.add('partial'); fB.style.width=percent; }
-    if (CONFIG.mascot && filled > lastFilled){ stackBrickTo(of[filled-1]||of[0]); lastFilled=filled; }
+
+    // remove travas do 1º paint e evita “tijolo voando” inicial do mascote
+    if (initializing){
+      lastFilled = filled;
+      initializing = false;
+      requestAnimationFrame(()=> document.body.classList.remove('no-anim'));
+    } else if (CONFIG.mascot && filled > lastFilled){
+      stackBrickTo(of[filled-1]||of[0]);
+      lastFilled = filled;
+    }
   }
 
   function moveMascotTo(brick){ if(!brick) return; const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect();
@@ -331,9 +373,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const brick=e.target.closest('.brick'); if(!brick||!bricksFgEl.contains(brick)) return;
     const donor=brick._donor;
     const r=brick.getBoundingClientRect();
-    const html=CONFIG.donorsOn && donor
-      ? `<b>${formatName(donor.name)}</b>${donor.msg?`<div>${donor.msg}</div>`:''}<div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Obrigado!'}</div>`
+
+    const donorTitle = (donor && donor.name)
+      ? `<b>${formatName(donor.name)}</b>`
+      : `<b>Famílias que Constroem</b>`;
+    const html = CONFIG.donorsOn && donor
+      ? `${donorTitle}${donor.msg?`<div>${donor.msg}</div>`:''}<div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Obrigado!'}</div>`
       : `<b>Obrigado!</b><div class="mini">Cada tijolo conta 💛</div>`;
+
     tip.innerHTML=html; tip.style.display='block';
     const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-140); const top=Math.max(8,r.top-12);
     tip.style.left=left+'px'; tip.style.top=top+'px';
@@ -356,6 +403,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     return null;
   }
 
+  /* ----- SUA fetchProgress ORIGINAL (mantida) ----- */
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
     const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
@@ -392,89 +440,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }
   }
 
+  /* ----- Doadores (Forms: TIJOLO_Respostas!I2:I) ----- */
   async function fetchDonors(){
-    if(!CONFIG.donorsOn) {donors=[]; return}
+    if(!CONFIG.donorsOn){ donors=[]; return }
     try{
-      const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
+      const base=`https://docs.google.com/spreadsheets/d/${(CONFIG.donorsSheetId||CONFIG.sheetId)}/gviz/tq`;
       const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.donorsSheet,range:CONFIG.donorsRange,t:Date.now()+''});
-      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); const data=JSON.parse(m[1]);
-      donors=(data.table.rows||[]).map(r=>({name:(r.c?.[0]?.v||'').toString(),msg:(r.c?.[1]?.v||'').toString(),value:Number(r.c?.[2]?.v||0)}));
-      // opcional: vincular aleatoriamente doadores a bricks preenchidos
-      const of=_orderFg; for(let i=0;i<of.length;i++){ of[i]._donor = donors[i % Math.max(1,donors.length)] }
-    }catch(e){console.warn('Doadores: falha ao ler',e);donors=[]}
-  }
-
-  /* ---------- Controles (UI) ---------- */
-  function syncControls(){
-    optPalette.value = CONFIG.palette;
-    optAutoDensity.checked = CONFIG.brickPx===0;
-    optBrickPx.value = CONFIG.brickPx || 14;
-    optBrickPx.disabled = optAutoDensity.checked;
-    optMascotOn.checked = CONFIG.mascot;
-    optMascotSrc.value = CONFIG.mascotSrc;
-    optDonorsOn.checked = CONFIG.donorsOn;
-    optNamesMode.value = CONFIG.namesMode;
-    optHudOn.checked = !CONFIG.hudOff;
-  }
-  function saveSettings(){ const copy={...CONFIG}; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
-  function applySettings(){
-    // visual
-    CONFIG.palette = optPalette.value;
-    CONFIG.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
-    CONFIG.mascot = optMascotOn.checked;
-    CONFIG.mascotSrc = optMascotSrc.value;
-    CONFIG.donorsOn = optDonorsOn.checked;
-    CONFIG.namesMode = optNamesMode.value;
-    CONFIG.hudOff = !optHudOn.checked;
-    // aplicar HUD/mascote
-    if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
-    placeMascot();
-    // redesenho
-    colorizeBricks(); layoutBricks();
-    fetchDonors();
-    saveSettings();
-  }
-  optPalette.onchange = applySettings;
-  optBrickPx.oninput = ()=>{ if(!optAutoDensity.checked) applySettings(); };
-  optAutoDensity.onchange = ()=>{ optBrickPx.disabled = optAutoDensity.checked; applySettings(); };
-  optMascotOn.onchange = applySettings;
-  optMascotSrc.onchange = applySettings;
-  optDonorsOn.onchange = ()=>{ applySettings(); };
-  optNamesMode.onchange = applySettings;
-  optHudOn.onchange = applySettings;
-
-  btnRefresh.onclick = ()=> fetchProgress();
-  btnSimulate.onclick = ()=> applyProgress(Math.min(1,lastProgress+0.02));
-  btnCopyLink.onclick = ()=>{
-    const u=new URL(location.href);
-    const params=new URLSearchParams();
-    if(CONFIG.palette!==DEFAULTS.palette) params.set('palette',CONFIG.palette);
-    if(CONFIG.brickPx!==0) params.set('brick_px',CONFIG.brickPx);
-    if(!CONFIG.mascot) params.set('mascot','0'); else if(CONFIG.mascotSrc!==DEFAULTS.mascotSrc) params.set('mascot_src',CONFIG.mascotSrc);
-    if(CONFIG.donorsOn) params.set('donors','1'); if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
-    if(CONFIG.hudOff) params.set('hud','0');
-    u.search = params.toString();
-    navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
-  };
-  btnReset.onclick = ()=>{
-    Object.assign(CONFIG, DEFAULTS);
-    syncControls(); applySettings();
-  };
-
-  fab.onclick = ()=> drawer.classList.add('open');
-  closeDrawer.onclick = ()=> drawer.classList.remove('open');
-
-  /* ---------- inicialização ---------- */
-  syncControls();
-  if(CONFIG.hudOff) hud.box.classList.add('hidden');
-
-  const ro=new ResizeObserver(()=>layoutBricks()); ro.observe(gauge);
-  window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
-  loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks();});
-  fetchDonors();
-  fetchProgress(); setInterval(fetchProgress, CONFIG.pollMs);
-})();
-</script>
-</body>
-</html>
+      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await
