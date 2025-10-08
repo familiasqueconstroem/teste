@@ -39,7 +39,7 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .alert{position:absolute;left:14px;top:14px;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:8px 10px;border-radius:10px;font-size:12px;display:none}
 .alert b{display:block;margin-bottom:4px}
 
-/* Mascote PNG (opcional) */
+/* Mascote (opcional) */
 .mascot{position:absolute;left:0;top:0;z-index:20;pointer-events:none;display:none;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .mascot img{display:block;width:110px;height:auto}
 .carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
@@ -181,15 +181,16 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   /* ---------- parâmetros e defaults ---------- */
   const qs=new URLSearchParams(location.search);
   const DEFAULTS={
-    // Planilha do PAINEL (esta já estava “certinha” na sua versão)
+    // Planilha do PAINEL (esta fica como estava, que já funcionava pra você)
     sheetId:'1-_J2DwVSn7LULB55YVPCHQsQ-PRfZYt8oDJhepdXYFY',
     sheetName:'Tijolometro', range:'A1:D10',
 
-    // Doadores a partir do Forms
+    // Doadores (Forms) — agora por cabeçalho
     donorsOn:false,
     donorsSheetId:'1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I',
     donorsSheet:'TIJOLO_Respostas',
-    donorsRange:'I2:I10000',
+    donorsHeader:'Texto do tijolo 1 (máx. 40)',   // <<< usa o texto do cabeçalho
+    donorsRange:'A1:Z10000',                      // pega a linha de cabeçalho + dados
     namesMode:'first',
 
     logo:'logo.png', cols:120, rows:72, brickPx:0, targetBricks:0, gap:1,
@@ -209,7 +210,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }))}
   function toKey(k){return ({
     'sheet_id':'sheetId','sheet':'sheetName','range':'range',
-    'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','names':'namesMode',
+    'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','donors_header':'donorsHeader','names':'namesMode',
     'logo':'logo','cols':'cols','rows':'rows','brick_px':'brickPx','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
     'embed':'embed','hud':'hudOn','target_bricks':'targetBricks','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion'
   }[k]||k)}
@@ -251,7 +252,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const paintCanvas=document.createElement('canvas');
   const pctx=paintCanvas.getContext('2d',{willReadFrequently:true});
   let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,lastFilled=0,donors=[];
-  let firstApplyDone=false; // <- para tirar animações no primeiro paint
+  let firstApplyDone=false; // para tirar animações no primeiro paint
 
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
@@ -359,7 +360,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const idx=Math.min(_orderFg.length-1,Math.floor(lastProgress*_orderFg.length)); moveMascotTo(_orderFg[idx]);
   }
 
-  // Tooltips de doadores (Forms)
+  // Tooltips (clique/touch)
   let tipTimer=null;
   bricksFgEl.addEventListener('click', onBrickTap, {passive:true});
   bricksFgEl.addEventListener('touchstart', onBrickTap, {passive:true});
@@ -379,7 +380,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if(CONFIG.mascot){ moveMascotTo(brick); stackBrickTo(brick); }
   }
 
-  // Parser de datas da planilha (mantido)
+  // Parser de datas (mantido)
   function parseDateCell(cell){
     let v=(cell&&typeof cell==='object'&&'v'in cell)?cell.v:cell;
     if(v&&typeof v==='object'){ if('f'in v&&typeof v.f==='string')return parseDateCell(v.f); if('v'in v) return parseDateCell(v.v); }
@@ -394,8 +395,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     return null;
   }
 
-  // === ATENÇÃO ===
-  // fetchProgress() é a MESMA lógica que você já usava. Não alterei a forma de buscar valores.
+  // --- SUA lógica de valores (inalterada) ---
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
     const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
@@ -432,18 +432,36 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }
   }
 
-  // Busca doadores (Forms: planilha/aba/coluna I)
+  // --- Doadores (Forms) por CABEÇALHO ---
   async function fetchDonors(){
     if(!CONFIG.donorsOn) {donors=[]; return;}
     try{
       const base=`https://docs.google.com/spreadsheets/d/${(CONFIG.donorsSheetId||CONFIG.sheetId)}/gviz/tq`;
       const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.donorsSheet,range:CONFIG.donorsRange,t:Date.now()+''});
-      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); const data=JSON.parse(m[1]);
-      donors=(data.table.rows||[])
-        .map(r=> ((r.c?.[0]?.v||'').toString().trim()))
-        .filter(s=>s.length>0)
-        .map(s=>({ name:'', msg:s, value:0 }));
+      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); 
+      const txt=await res.text();
+      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); 
+      const data=JSON.parse(m[1]);
+      const rows=data.table.rows||[];
+      if(rows.length===0){ donors=[]; return; }
+
+      // 1ª linha é cabeçalho
+      const headerRow = rows[0];
+      const headers = (headerRow.c||[]).map(c => (c?.v ?? '').toString().trim().toLowerCase());
+      const wanted = (CONFIG.donorsHeader||'').toString().trim().toLowerCase();
+      const colIdx = headers.findIndex(h => h === wanted);
+
+      if(colIdx === -1){
+        // Não achou o cabeçalho -> não exibe nada para evitar lixo.
+        donors=[];
+      }else{
+        donors = rows.slice(1) // a partir da linha 2
+          .map(r => (r.c?.[colIdx]?.v ?? ''))
+          .map(v => (v||'').toString().trim())
+          .filter(s => s.length>0)
+          .map(s => ({ name:'', msg:s, value:0 }));
+      }
+
       // vincula ciclicamente aos tijolos (só para tooltip)
       const of=_orderFg;
       for(let i=0;i<of.length;i++){ of[i]._donor = donors.length? donors[i % donors.length] : null; }
@@ -464,7 +482,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   }
   function saveSettings(){ const copy={...CONFIG}; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
   function applySettings(){
-    // visual
     CONFIG.palette = optPalette.value;
     CONFIG.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
     CONFIG.mascot = optMascotOn.checked;
@@ -472,12 +489,11 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     CONFIG.donorsOn = optDonorsOn.checked;
     CONFIG.namesMode = optNamesMode.value;
     CONFIG.hudOff = !optHudOn.checked;
-    // aplicar HUD/mascote
+
     if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
     placeMascot();
-    // redesenho + doadores
     colorizeBricks(); layoutBricks();
-    fetchDonors();
+    fetchDonors(); // recarrega doadores ao trocar a chave
     saveSettings();
   }
   optPalette.onchange = applySettings;
@@ -500,10 +516,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if(CONFIG.donorsOn) params.set('donors','1');
     if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
     if(CONFIG.hudOff) params.set('hud','0');
-    // incluir origem dos doadores se não for o default
+    // também permite fixar origem dos doadores no link, se quiser
     if(CONFIG.donorsSheetId!==DEFAULTS.donorsSheetId) params.set('donors_sheet_id', CONFIG.donorsSheetId);
     if(CONFIG.donorsSheet!==DEFAULTS.donorsSheet)   params.set('donors_sheet', CONFIG.donorsSheet);
-    if(CONFIG.donorsRange!==DEFAULTS.donorsRange)   params.set('donors_range', CONFIG.donorsRange);
+    if(CONFIG.donorsHeader!==DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
     u.search = params.toString();
     navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
   };
@@ -516,8 +532,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   closeDrawer.onclick = ()=> drawer.classList.remove('open');
 
   /* ---------- inicialização ---------- */
-  // garante sem animação no 1º paint
-  document.body.classList.add('no-anim');
+  document.body.classList.add('no-anim'); // sem animação no 1º paint
 
   syncControls();
   if(CONFIG.hudOff) hud.box.classList.add('hidden');
@@ -526,8 +541,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
 
   loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks();});
-  fetchDonors();            // lê doadores do Forms (se ligado)
-  fetchProgress();          // mantém sua lógica original para valores
+  fetchDonors();            // lê doadores (Forms) por cabeçalho
+  fetchProgress();          // valores do painel (sua lógica original)
   setInterval(fetchProgress, CONFIG.pollMs);
 })();
 </script>
