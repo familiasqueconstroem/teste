@@ -287,11 +287,6 @@ body{
   // estado para compartilhamento
   const shareState = { raised:0, goal:0, pctText:'0%' };
   const SHARE_PREF_KEY='tj:shareTpl';
-  const shareModal = document.getElementById('shareModal');
-  const shareClose = document.getElementById('shareClose');
-  const sharePreview = document.getElementById('sharePreview');
-  const shareGo = document.getElementById('shareGo');
-  const shareSetDefault = document.getElementById('shareSetDefault');
 
   // -------------------- utils --------------------
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
@@ -300,9 +295,9 @@ body{
   const paintCanvas = document.createElement('canvas');
   const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
   let logoImg=null, aspectSet=false, bricksFg=[], bricksBg=[], effCols, effRows, lastProgress=0;
-  let _orderFg=[], _orderBg=[]; // <— único lugar onde declaramos a ordem
+  let _orderFg=[], _orderBg=[];
 
-  // -------------------- paleta de mapeamento --------------------
+  // -------------------- paleta --------------------
   const PALETTES = {
     brand2:['#0A4AA6','#F2C035'],
     brand3:['#0A4AA6','#F2C035','#8B1E1E'],
@@ -319,7 +314,7 @@ body{
   const makeSampler = (data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))); const yi=Math.max(0,Math.min(H-1,Math.round(y))); const i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]];};
   const median = a => {const b=a.slice().sort((m,n)=>m-n); return b[Math.floor(b.length/2)]};
 
-  // -------------------- logo -> cores de tijolos --------------------
+  // -------------------- logo -> cores --------------------
   function loadLogo(src){
     return new Promise((resolve)=>{
       const im = new Image();
@@ -338,7 +333,6 @@ body{
     if(!logoImg) return;
     const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
     paintCanvas.width=W; paintCanvas.height=H; pctx.clearRect(0,0,W,H);
-    // desenha logo centralizado
     const ar=logoImg.naturalWidth/logoImg.naturalHeight; let dw=W, dh=W/ar; if(dh>H){dh=H; dw=H*ar}
     const dx=(W-dw)/2, dy=(H-dh)/2; pctx.drawImage(logoImg,dx,dy,dw,dh);
     const buf=pctx.getImageData(0,0,W,H).data; const samp=makeSampler(buf,W,H);
@@ -352,7 +346,7 @@ body{
     }
   }
 
-  // -------------------- layout da grade --------------------
+  // -------------------- layout --------------------
   function buildOrder(rows,cols){ const of=[],ob=[]; for(let r=rows-1;r>=0;r--){ for(let c=0;c<cols;c++){ const i=r*cols+c; of.push(bricksFg[i]); ob.push(bricksBg[i]); } } return [of,ob]; }
   function layoutBricks(){
     ensureAspectFromLogo(); const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
@@ -382,7 +376,7 @@ body{
     colorizeBricks(); applyProgress(lastProgress);
   }
 
-  // -------------------- progresso (preenchimento) --------------------
+  // -------------------- progresso --------------------
   function applyProgress(p){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
     const cols=(typeof effCols==='number'&&effCols>0)? effCols : PREFS.cols;
@@ -402,7 +396,7 @@ body{
     if (window._hookAfterApplyProgress) window._hookAfterApplyProgress({filled,total});
   }
 
-  // -------------------- Google Sheets (painel) --------------------
+  // -------------------- Sheets (painel) --------------------
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${PREFS.sheetId}/gviz/tq`;
     const params=new URLSearchParams({ tqx:'out:json', sheet:PREFS.sheetName, range:PREFS.range, t:Date.now()+'' });
@@ -446,7 +440,7 @@ body{
     }
   }
 
-  // -------------------- Doadores (Forms auto) --------------------
+  // -------------------- Doadores (Forms) --------------------
   let donors=[];
   function firstName(n){ if(!n) return ''; const p=n.trim().split(/\s+/); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
   function formatName(n){ return n? firstName(n) : 'Doação recebida'; }
@@ -466,7 +460,6 @@ body{
       const rows=table.rows||[]; if(!rows.length) return;
 
       const headers=(rows[0].c||[]).map(c=>(c?.v||'').toString().trim());
-      // indices
       const idxMsg  = headers.findIndex(h => h.trim().toLowerCase() === PREFS.formsMsgHeader.trim().toLowerCase());
       const idxName = headers.findIndex(h => /nome/i.test(h));
       const idxVal  = headers.findIndex(h => /valor|doa(ç|c)ao|r\$/i.test(h));
@@ -478,7 +471,8 @@ body{
         const val  = idxVal >=0 ? Number(c[idxVal]?.v||0) : 0;
         if(name || msg || val) donors.push({name,msg,value:val});
       }
-    }catch(e){ console.warn('Doadores (Forms):', e); donors=[]; }
+    }catch(e){ console.warn('Doadores (Forms):', e); donors=[];
+    }
   }
 
   function assignDonorsToFilled(filled){
@@ -491,6 +485,7 @@ body{
   }
 
   // Tooltip
+  const tip = document.getElementById('tip');
   bricksFgEl.addEventListener('click', onBrickTap, {passive:true});
   bricksFgEl.addEventListener('touchstart', onBrickTap, {passive:true});
   function onBrickTap(e){
@@ -537,19 +532,18 @@ body{
     if(!mascotBubble) return; mascotBubble.textContent=text; mascotBubble.classList.add('show');
     clearTimeout(say._t); say._t=setTimeout(()=>mascotBubble.classList.remove('show'),ms);
   }
-  // Clique no mascote: aceno + fala + arremesso curto
   mascotImg.addEventListener('click', ()=>{
     mascotImg.classList.remove('wave'); void mascotImg.offsetWidth; mascotImg.classList.add('wave');
     say('Cada Tijolo Conta!');
     throwCuteBrick();
-    if (audioState.on) ensureAudioPlays(); // garante reprodução após gesto
+    if (audioState.on) ensureAudioPlays();
   });
 
   function throwCuteBrick(){
     try{
       const rm=mascotImg.getBoundingClientRect();
       const sx = rm.left + rm.width*0.20, sy = rm.top + rm.height*0.66;
-      const ex = sx + 80, ey = sy - 120; // arco curto para cima/direita
+      const ex = sx + 80, ey = sy - 120;
       const flying=document.createElement('div');
       flying.className='throw-brick';
       flying.style.left=sx+'px'; flying.style.top=sy+'px';
@@ -563,7 +557,7 @@ body{
     }catch{}
   }
 
-  // animação somente quando AUMENTAR (não anima no 1º carregamento)
+  // animação somente quando AUMENTAR
   let _prevFilled=null,_ready=false;
   window._hookAfterApplyProgress = function({filled,total}){
     assignDonorsToFilled(filled);
@@ -578,8 +572,9 @@ body{
     _prevFilled=filled;
   };
 
-  // -------------------- Som (m4a preferido + mp3 fallback) --------------------
+  // -------------------- Som (prioriza cada_tijolo_conta.*) --------------------
   const audioCandidates = [
+    'cada_tijolo_conta.m4a','cada_tijolo_conta.mp3',   // <- prioridade
     'trilha1.m4a','trilha1.mp3',
     'trilha2.m4a','trilha2.mp3',
     'Cada_Tijolo_Conta.m4a','Cada_Tijolo_Conta.mp3',
@@ -613,12 +608,12 @@ body{
       if(!audioState.el.src || audioState.el.src.indexOf(audioState.track)===-1){
         audioState.el.src = audioState.track+'?v='+Date.now();
       }
-      audioState.el.play().catch(()=>{/* precisa de gesto do usuário (clicar mascote ajuda) */});
+      audioState.el.play().catch(()=>{/* precisa de gesto do usuário */});
     }catch{}
   }
   function stopAudio(){ try{ if(audioState.el){ audioState.el.pause(); } }catch{} }
 
-  // -------------------- Painel (simplificado) --------------------
+  // -------------------- Painel --------------------
   const fab=document.getElementById('fab'), drawer=document.getElementById('drawer'), closeDrawer=document.getElementById('closeDrawer');
   const optPalette=document.getElementById('optPalette'), optAutoDensity=document.getElementById('optAutoDensity'), optBrickPx=document.getElementById('optBrickPx');
   const optMascotOn=document.getElementById('optMascotOn');
@@ -659,7 +654,6 @@ body{
 
     savePrefs(PREFS);
 
-    // aplica
     colorizeBricks(); layoutBricks(); await fetchDonors(); await fetchProgress(); await bootMascote();
     if(PREFS.soundOn){ audioState.on=true; audioState.track=PREFS.trackSrc; ensureAudioPlays(); }
     else { audioState.on=false; stopAudio(); }
@@ -674,8 +668,14 @@ body{
 
   optAutoDensity.addEventListener('change',()=>{ optBrickPx.disabled=optAutoDensity.checked; });
 
-  // -------------------- Compartilhar (com seleção de template) --------------------
+  // -------------------- Compartilhar (template #2 como padrão) --------------------
   const shareFab = document.getElementById('shareFab');
+  const shareModal = document.getElementById('shareModal');
+  const shareClose = document.getElementById('shareClose');
+  const sharePreview = document.getElementById('sharePreview');
+  const shareGo = document.getElementById('shareGo');
+  const shareSetDefault = document.getElementById('shareSetDefault');
+
   function buildShareText(tplId){
     const LINK = location.href;
     const META = formatBRL(shareState.goal);
@@ -687,16 +687,13 @@ Estamos em ${PCT} da meta (${META}). Participe: ${LINK}`;
       return `🚧 Famílias que Constroem — Associação de Pais do Colégio Luzeiros.
 ${PCT} da meta (${META}). Junte-se: ${LINK} 🧱`;
     }
-    // default #1
     return `🧱 Famílias que Constroem – Associação de Pais do Colégio Luzeiros.
 Já chegamos a ${PCT} da meta de ${META}.
 Veja o Tijolômetro e participe: ${LINK} 💛`;
   }
   function openShareSheet(){
-    // marcar último template selecionado
-    const last = localStorage.getItem(SHARE_PREF_KEY) || '1';
-    (document.getElementById('tpl'+last) || document.getElementById('tpl1')).checked = true;
-    // atualizar prévia
+    const last = localStorage.getItem(SHARE_PREF_KEY) || '2'; // <- padrão #2
+    (document.getElementById('tpl'+last) || document.getElementById('tpl2')).checked = true;
     updateSharePreview();
     shareModal.classList.add('show');
     shareModal.setAttribute('aria-hidden','false');
@@ -706,7 +703,7 @@ Veja o Tijolômetro e participe: ${LINK} 💛`;
     shareModal.setAttribute('aria-hidden','true');
   }
   function updateSharePreview(){
-    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '1';
+    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '2';
     sharePreview.textContent = buildShareText(sel);
   }
 
@@ -717,14 +714,14 @@ Veja o Tijolômetro e participe: ${LINK} 💛`;
   document.getElementById('tpl3').addEventListener('change', updateSharePreview);
 
   shareSetDefault.addEventListener('click', ()=>{
-    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '1';
+    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '2';
     localStorage.setItem(SHARE_PREF_KEY, sel);
     shareSetDefault.textContent = 'Padrão salvo ✓';
     setTimeout(()=> shareSetDefault.textContent='Usar como padrão', 1400);
   });
 
   shareGo.addEventListener('click', async ()=>{
-    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '1';
+    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '2';
     const text = buildShareText(sel);
     try{
       if(navigator.share){
@@ -739,16 +736,13 @@ Veja o Tijolômetro e participe: ${LINK} 💛`;
   });
 
   // -------------------- Boot --------------------
-  function syncControls(){ /* já definida acima */ }
-  syncControls();
   window.addEventListener('resize', debounce(layoutBricks, 120));
   window.addEventListener('orientationchange', ()=> setTimeout(layoutBricks,150));
 
   loadLogo(DEFAULTS.logo).then(ok=>{ if(ok){ ensureAspectFromLogo(); layoutBricks(); } });
   fetchDonors();
   fetchProgress();
-  bootMascote();
-  detectTracks();
+  (async()=>{ await bootMascote(); await detectTracks(); })();
 
   setInterval(fetchProgress, DEFAULTS.pollMs);
 })();
