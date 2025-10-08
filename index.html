@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tijolômetro (TESTE SEM CANVAS)</title>
+<title>Tijolômetro</title>
 <style>
 :root {
   /* Visual base */
@@ -48,7 +48,6 @@ body{
   filter:grayscale(1) sepia(1) brightness(1.5);
 }
 .bricks-bg{ position:absolute; inset:0; }
-/* A máscara de CSS é agora a única responsável pelo efeito do logo */
 .mask-layer{
   position:absolute; inset:0; background:transparent;
   --mask:url('logo.png');
@@ -69,7 +68,6 @@ body{
 }
 .brick .fill{
   position:absolute; inset:0; width:0%; height:100%;
-  /* Esta é agora a única cor que o logo terá (para este teste) */
   background: linear-gradient(145deg, hsl(14, 45%, 48%), hsl(14, 45%, 40%));
   box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
   transition:width .35s ease;
@@ -99,7 +97,7 @@ body{
     <div class="gauge" id="gauge">
       <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique o arquivo.</div>
       <img class="ghost-logo" id="ghostLogo" alt="logo" />
-      <div class.="bricks-bg" id="bricksBg"></div>
+      <div class="bricks-bg" id="bricksBg"></div>
       <div class="mask-layer" id="mask">
         <div class="bricks" id="bricksFg"></div>
       </div>
@@ -128,9 +126,8 @@ body{
     grout: qs.get('grout') || '',
     joint: qs.get('joint') || '',
     ghost: qs.get('ghost') || '',
+    palette: qs.get('palette') || 'brand3'
   };
-
-  // As variáveis e funções de paleta de cores e canvas foram REMOVIDAS.
 
   if (!Number.isNaN(CONFIG.pad)) document.documentElement.style.setProperty('--pad', CONFIG.pad + 'px');
   if (CONFIG.grout) document.documentElement.style.setProperty('--grout', CONFIG.grout);
@@ -150,7 +147,9 @@ body{
     updated: document.getElementById('hudUpdated'),
     goalLabel: document.getElementById('hudGoalLabel')
   };
-  
+
+  const paintCanvas = document.createElement('canvas');
+  const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
   let logoImg = null, aspectSet = false;
   let bricksFg = [], bricksBg = [];
   let lastProgress = 0;
@@ -168,18 +167,69 @@ body{
     });
   }
   function ensureAspectFromLogo(){ if(aspectSet || !logoImg) return; const ar = logoImg.naturalWidth / logoImg.naturalHeight; if(ar>0) gauge.style.aspectRatio = `${ar} / 1`; aspectSet = true; }
-  
-  // A função colorizeBricks foi REMOVIDA. A máscara de CSS fará todo o trabalho.
+  const PALETTES = { brand2: ['#0A4AA6', '#F2C035'], brand3: ['#0A4AA6', '#F2C035', '#8B1E1E'], };
+  function hexToRgb(hex){ const n=parseInt(hex.replace('#',''),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+  function dist2(c1,c2){ const dr=c1.r-c2.r,dg=c1.g-c2.g,db=c1.b-c2.b; return dr*dr+dg*dg+db*db; }
+  function mapToPalette(r,g,b, name){ const set = PALETTES[name]; if(!set) return `rgb(${r},${g},${b})`; let best=set[0], bestD=Infinity, c1={r,g,b}; for(const h of set){ const c2=hexToRgb(h); const d=dist2(c1,c2); if(d<bestD){bestD=d; best=h;} } return best; }
+  function makeSampler(data, W, H){ return function px(x,y){ const xi = Math.max(0, Math.min(W-1, Math.round(x))); const yi = Math.max(0, Math.min(H-1, Math.round(y))); const i = (yi*W + xi) * 4; return [data[i], data[i+1], data[i+2], data[i+3]]; }; }
+  function median(a){ const b=a.slice().sort((m,n)=>m-n); return b[Math.floor(b.length/2)]; }
+
+  // ===== NOVA VERSÃO OTIMIZADA PARA PERFORMANCE =====
+  function colorizeBricks(){
+    if(!logoImg) return;
+    const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
+    paintCanvas.width=W; paintCanvas.height=H; pctx.clearRect(0,0,W,H);
+    const ar = logoImg.naturalWidth / logoImg.naturalHeight;
+    let dw=W, dh=W/ar; if(dh>H){ dh=H; dw=H*ar; }
+    const dx=(W-dw)/2, dy=(H-dh)/2;
+    pctx.drawImage(logoImg, dx, dy, dw, dh);
+    const buf = pctx.getImageData(0,0,W,H).data;
+    const samp = makeSampler(buf, W, H);
+
+    let i = 0;
+    const totalBricks = bricksFg.length;
+
+    function processChunk() {
+      // Processa um lote de tijolos para não travar o navegador do celular
+      const batchSize = 500;
+      let processedInBatch = 0;
+      while (i < totalBricks && processedInBatch < batchSize) {
+        const bFg = bricksFg[i], bBg = bricksBg[i];
+        const x=bFg._x, y=bFg._y, w=bFg._w, h=bFg._h;
+        const pts = [ [x+w/2, y+h/2],[x+1, y+1], [x+w-2, y+1], [x+1, y+h-2], [x+w-2, y+h-2], [x+w/2, y+1], [x+w/2, y+h-2], [x+1, y+h/2], [x+w-2, y+h/2] ];
+        const rs=[], gs=[], bs=[], as=[];
+        for(const [px,py] of pts){ const d=samp(px,py); rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]); }
+        const A = median(as);
+        const fgFill = bFg.querySelector('.fill');
+        const bgFill = bBg.querySelector('.fill');
+        if (A < 100){
+          fgFill.style.background='transparent';
+          bgFill.style.opacity='1';
+        } else {
+          const r=median(rs), g=median(gs), b=median(bs);
+          const mapped = mapToPalette(r,g,b, CONFIG.palette);
+          fgFill.style.background = mapped;
+          bgFill.style.opacity='0';
+        }
+        i++;
+        processedInBatch++;
+      }
+      
+      // Se ainda houver tijolos para processar, agenda o próximo lote
+      if (i < totalBricks) {
+        setTimeout(processChunk, 0); // Pausa para o navegador "respirar"
+      }
+    }
+    
+    processChunk(); // Inicia o processamento do primeiro lote
+  }
   
   function layoutBricks(){ 
     ensureAspectFromLogo(); 
     const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; 
-    if(!W || !H) {
-      setTimeout(layoutBricks, 100);
-      return;
-    };
-    if (CONFIG.brickPx && CONFIG.brickPx > 0) { const brickWtarget = CONFIG.brickPx; const brickHtarget = Math.round(brickWtarget * 0.6); effCols = Math.max(20, Math.floor((W - CONFIG.gap) / (brickWtarget + CONFIG.gap))); effRows = Math.max(12, Math.floor((H - CONFIG.gap) / (brickHtarget + CONFIG.gap))); } const cols = (typeof effCols === 'number' && effCols > 0) ? effCols : CONFIG.cols; const rows = (typeof effRows === 'number' && effRows > 0) ? effRows : CONFIG.rows; const gap  = CONFIG.gap; let brickW = Math.floor((W - (cols + 1) * gap) / cols); if (brickW < 2) brickW = 2; let offset = Math.floor(brickW / 2); let gridWEven = cols * brickW + (cols + 1) * gap; let gridWOdd  = gridWEven + offset; if (gridWOdd > W) { const extra  = gridWOdd - W; const reduce = Math.ceil(extra / cols); brickW = Math.max(2, brickW - reduce); offset = Math.floor(brickW / 2); gridWEven = cols * brickW + (cols + 1) * gap; gridWOdd  = gridWEven + offset; } const brickH = Math.max(2, Math.floor((H - (rows + 1) * gap) / rows)); const gridWMax = Math.max(gridWEven, gridWOdd); const startXBase = Math.max(gap, Math.floor((W - gridWMax) / 2) + gap); const total = rows * cols; if (bricksFg.length !== total){ bricksFgEl.innerHTML = ''; bricksBgEl.innerHTML = ''; bricksFg = []; bricksBg = []; const fragFg = document.createDocumentFragment(); const fragBg = document.createDocumentFragment(); for (let i=0;i<total;i++){ const elF = document.createElement('div'); elF.className='brick'; elF.appendChild(document.createElement('div')).className='fill'; fragFg.appendChild(elF); bricksFg.push(elF); const elB = document.createElement('div'); elB.className='brick'; elB.appendChild(document.createElement('div')).className='fill'; fragBg.appendChild(elB); bricksBg.push(elB); } bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg); } let idx = 0; for (let r=0; r<rows; r++){ const startX = startXBase + (r % 2 ? offset : 0); for (let c=0; c<cols; c++){ const x = startX + c * (brickW + gap); const y = gap + r * (brickH + gap); const bFg = bricksFg[idx]; bFg.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; const bBg = bricksBg[idx]; bBg.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } } 
-    // A chamada para colorizeBricks foi removida.
+    if(!W || !H) return; 
+    if (CONFIG.brickPx && CONFIG.brickPx > 0) { const brickWtarget = CONFIG.brickPx; const brickHtarget = Math.round(brickWtarget * 0.6); effCols = Math.max(20, Math.floor((W - CONFIG.gap) / (brickWtarget + CONFIG.gap))); effRows = Math.max(12, Math.floor((H - CONFIG.gap) / (brickHtarget + CONFIG.gap))); } const cols = (typeof effCols === 'number' && effCols > 0) ? effCols : CONFIG.cols; const rows = (typeof effRows === 'number' && effRows > 0) ? effRows : CONFIG.rows; const gap  = CONFIG.gap; let brickW = Math.floor((W - (cols + 1) * gap) / cols); if (brickW < 2) brickW = 2; let offset = Math.floor(brickW / 2); let gridWEven = cols * brickW + (cols + 1) * gap; let gridWOdd  = gridWEven + offset; if (gridWOdd > W) { const extra  = gridWOdd - W; const reduce = Math.ceil(extra / cols); brickW = Math.max(2, brickW - reduce); offset = Math.floor(brickW / 2); gridWEven = cols * brickW + (cols + 1) * gap; gridWOdd  = gridWEven + offset; } const brickH = Math.max(2, Math.floor((H - (rows + 1) * gap) / rows)); const gridWMax = Math.max(gridWEven, gridWOdd); const startXBase = Math.max(gap, Math.floor((W - gridWMax) / 2) + gap); const total = rows * cols; if (bricksFg.length !== total){ bricksFgEl.innerHTML = ''; bricksBgEl.innerHTML = ''; bricksFg = []; bricksBg = []; const fragFg = document.createDocumentFragment(); const fragBg = document.createDocumentFragment(); for (let i=0;i<total;i++){ const elF = document.createElement('div'); elF.className='brick'; elF.appendChild(document.createElement('div')).className='fill'; fragFg.appendChild(elF); bricksFg.push(elF); const elB = document.createElement('div'); elB.className='brick'; elB.appendChild(document.createElement('div')).className='fill'; fragBg.appendChild(elB); bricksBg.push(elB); } bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg); } let idx = 0; for (let r=0; r<rows; r++){ const startX = startXBase + (r % 2 ? offset : 0); for (let c=0; c<cols; c++){ const x = startX + c * (brickW + gap); const y = gap + r * (brickH + gap); const bFg = bricksFg[idx]; bFg.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; bFg._x = x; bFg._y = y; bFg._w = brickW; bFg._h = brickH; const bBg = bricksBg[idx]; bBg.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } } 
+    colorizeBricks(); 
     applyProgress(lastProgress); 
   }
 
