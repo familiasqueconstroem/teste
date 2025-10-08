@@ -3,49 +3,69 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tijolômetro — Cada Tijolo Conta</title>
+<title>Tijolômetro</title>
 <style>
 :root{
-  --bg:#FFFAF5; --grout:#E5DBD1; --grid:#CDBFB3; --brick-bg:#a35a41; --joint:0.8px;
-  --panel-max:1600px; --pad:0px;
+  /* Cores */
+  --bg:#FFFAF5;
+  --grout:#E5DBD1;
+  --grid:#CDBFB3;
+  --brick-bg:#a35a41;           /* tijolo do “fundo” (áreas vazias) */
+  --joint:0.8px;
+
+  /* Layout */
+  --pad:0px;
+  --panel-max:1600px;
+
+  /* Mascote */
+  --mascot-size: clamp(120px, 24vmin, 280px);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
-  margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+  margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;
   background:var(--bg); color:#111; display:flex; align-items:center; justify-content:center; padding:12px;
 }
+@keyframes fadeIn{from{opacity:0;transform:scale(.985)} to{opacity:1;transform:scale(1)}}
 .panel{
   width:min(var(--panel-max),98vw);
   background:#fff; border-radius:20px; box-shadow:0 8px 30px rgba(0,0,0,.08);
-  padding:16px; display:flex; flex-direction:column; gap:16px;
+  padding:16px; display:flex; flex-direction:column; gap:16px; animation:fadeIn .45s ease-out both;
 }
+
+/* ----- Área principal ----- */
 .gauge{
-  position:relative; width:100%; min-height:300px;
+  position:relative; width:100%;
+  min-height:300px;
   border-radius:14px; overflow:hidden; background:#F7EFE7;
 }
 .ghost-logo{
   position:absolute; inset:var(--pad);
-  width:calc(100% - (var(--pad)*2)); height:calc(100% - (var(--pad)*2));
-  object-fit:contain; opacity:0; /* só para manter aspect-ratio do logo */
+  width:calc(100% - (var(--pad) * 2)); height:calc(100% - (var(--pad) * 2));
+  margin:auto; object-fit:contain; opacity:0; /* fica invisível: só usamos como referência */
+}
+.bricks-bg{ position:absolute; inset:0 }
+.mask-layer{
+  position:absolute; inset:0; background:transparent;
+  --mask:url('logo.png');
+  -webkit-mask-image:var(--mask);    mask-image:var(--mask);
+  -webkit-mask-repeat:no-repeat;     mask-repeat:no-repeat;
+  -webkit-mask-position:center;      mask-position:center;
+  -webkit-mask-size:contain;         mask-size:contain;
 }
 .bricks{ position:relative; width:100%; height:100% }
 .brick{
   position:absolute; background:var(--grout); border-radius:2px; overflow:hidden;
   box-shadow: inset 0 0 0 var(--joint) var(--grid);
 }
-.brick .fill{ position:absolute; inset:0; width:0%; height:100%; transition:width .35s ease; background:var(--brick-bg) }
-.brick.filled .fill{ width:100% }
-.bricks-bg{ position:absolute; inset:0 }
-.mask-layer{
-  position:absolute; inset:0; background:transparent; --mask:url('logo.png');
-  -webkit-mask-image:var(--mask); mask-image:var(--mask);
-  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-  -webkit-mask-position:center; mask-position:center;
-  -webkit-mask-size:contain; mask-size:contain;
+.brick .fill{
+  position:absolute; inset:0; width:0%; height:100%; transition:width .35s ease;
+  background:var(--brick-bg);
 }
+.bricks-bg .brick .fill{ background:var(--brick-bg) }
+.brick.filled .fill{ width:100% }
 
-/* HUD: rótulo em cima */
+/* ----- HUD ----- */
 .hud{
   display:grid; grid-template-columns: repeat(4, minmax(0,1fr));
   gap:10px; padding:10px; border:1px solid #eee; border-radius:12px; background:#fdfdfd;
@@ -55,46 +75,64 @@ body{
 .hud .k b{ font-size:20px }
 .hud .updated{ font-size:11px; color:#777; align-self:end; text-align:right }
 
+/* ----- Alert ----- */
 .alert{
   position:absolute; left:14px; top:14px; background:#fff3cd; border:1px solid #ffe69c; color:#664d03;
   padding:8px 10px; border-radius:10px; font-size:12px; display:none; z-index:9;
 }
 .alert b{ display:block; margin-bottom:4px }
 
-/* Mascote (opcional) */
+/* ----- Mascote ----- */
 .mascot{
   position:absolute; right:12px; bottom:10px; z-index:6;
-  width:clamp(120px, 24vmin, 280px); height:auto; display:none;
+  width:var(--mascot-size); height:auto; display:none; transform-origin:50% 100%;
   filter: drop-shadow(0 12px 24px rgba(0,0,0,.25));
 }
-.mascot.wave{ animation:wave .8s ease 1 }
-@keyframes wave{0%{transform:rotate(0)}25%{transform:rotate(-3deg)}50%{transform:rotate(2deg)}75%{transform:rotate(-2deg)}100%{transform:rotate(0)}}
+.mascot.bob{ animation:mascotBob 3s ease-in-out infinite }
+@keyframes mascotBob{0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)}}
+.mascot.wave{ animation:mascotWave .9s ease 1 }
+@keyframes mascotWave{
+  0%{transform:translateY(0) rotate(0)} 25%{transform:translateY(-2px) rotate(-3deg)}
+  50%{transform:translateY(0) rotate(2deg)} 75%{transform:translateY(-1px) rotate(-2deg)}
+  100%{transform:translateY(0) rotate(0)}
+}
 .mascot-bubble{
-  position:absolute; right:180px; bottom:140px; background:#fff; color:#222;
-  border-radius:12px; padding:8px 10px; max-width:48ch; box-shadow:0 8px 24px rgba(0,0,0,.18);
-  font-size:14px; line-height:1.3; display:none; z-index:7;
+  position:absolute; right:calc(var(--mascot-size) - 10px); bottom:calc(100% - 8px);
+  background:#fff; color:#222; border-radius:12px; padding:8px 10px; max-width:52ch;
+  box-shadow:0 8px 24px rgba(0,0,0,.18); font-size:14px; line-height:1.3; display:none; z-index:7;
 }
-.mascot-bubble.show{ display:block }
-
-/* Dev status (mostra erro JS) */
-#devStatus{
-  position:fixed; left:10px; bottom:10px; z-index:9999; font:12px/1.2 system-ui;
-  background:#e6ffed; color:#036703; border:1px solid #b7efc0; padding:6px 8px; border-radius:8px;
+.mascot-bubble.show{ display:block; animation:fadeUp .22s ease }
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}}
+.throw-brick{
+  position:fixed; z-index:5; border-radius:2px; background:var(--brick-bg);
+  box-shadow: inset 0 0 0 var(--joint) var(--grid);
 }
-#devStatus.err{ background:#ffe6e6; color:#8a0000; border-color:#ffb3b3 }
+@media (max-width:640px){
+  .mascot{ right:8px; bottom:8px; }
+  .mascot-bubble{ right:calc(var(--mascot-size) - 16px) }
+}
+@media (prefers-reduced-motion: reduce){
+  .mascot.bob, .mascot.wave{ animation:none !important }
+}
 </style>
 </head>
 <body>
   <div class="panel">
     <div class="gauge" id="gauge">
-      <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique <code>logo.png</code>.</div>
+      <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique o arquivo <code>logo.png</code>.</div>
 
+      <!-- “fantasma” só para base de proporção (fica invisível) -->
       <img id="ghostLogo" class="ghost-logo" alt="logo" />
+
+      <!-- tijolos do fundo (vazios) -->
       <div class="bricks-bg"><div class="bricks" id="bricksBg"></div></div>
+
+      <!-- tijolos da frente, recortados pelo logo -->
       <div class="mask-layer" id="mask"><div class="bricks" id="bricksFg"></div></div>
 
-      <img id="mascot" class="mascot" alt="Mascote" />
-      <div id="bubble" class="mascot-bubble">Cada Tijolo Conta!</div>
+      <!-- mascote -->
+      <img id="mascotImg" class="mascot" alt="Mascote" />
+      <div id="mascotBubble" class="mascot-bubble"></div>
     </div>
 
     <div class="hud">
@@ -105,22 +143,32 @@ body{
     </div>
   </div>
 
-  <div id="devStatus" style="display:none"></div>
-
 <script>
 (function(){
-  // IDs das planilhas (as que já vinham funcionando)
-  const PANEL_SHEET_ID = '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY'; // Arrecadado/Meta (A1:D10)
+  // -----------------------------------------------
+  // CONFIG (URL ainda funciona, mas não é obrigatório)
+  // -----------------------------------------------
+  const qs = new URLSearchParams(location.search);
   const CONFIG = {
-    sheetId: PANEL_SHEET_ID,
-    sheetName: 'Tijolometro',
-    range: 'A1:D10',
-    logo: 'logo.png',
-    palette: 'brand5',
-    cols: 120, rows: 72, gap: 1
+    sheetId:   qs.get('sheet_id') || '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY',
+    sheetName: qs.get('sheet')    || 'Tijolometro',
+    range:     qs.get('range')    || 'A1:D10',  // Rotulo / Valor / Inicio / Fim
+    goalField: qs.get('goal_field')   || 'meta',
+    raisedField: qs.get('raised_field') || 'arrecadado',
+
+    logo: qs.get('logo') || 'logo.png',
+    cols: parseInt(qs.get('cols') || '120', 10),
+    rows: parseInt(qs.get('rows') || '72', 10),
+    brickPx: parseInt(qs.get('brick_px') || '0', 10),
+    gap: 1,
+    pollMs: parseInt(qs.get('poll_ms') || '30000', 10),
+
+    palette: qs.get('palette') || 'brand3',
   };
 
-  // Estado / elementos
+  // -----------------------------------------------
+  // ELEMENTOS
+  // -----------------------------------------------
   const gauge = document.getElementById('gauge');
   const maskEl = document.getElementById('mask');
   const ghostEl = document.getElementById('ghostLogo');
@@ -134,62 +182,26 @@ body{
     updated: document.getElementById('hudUpdated'),
     goalLabel: document.getElementById('hudGoalLabel')
   };
-  const dev = document.getElementById('devStatus');
+  const mascotImg = document.getElementById('mascotImg');
+  const mascotBubble = document.getElementById('mascotBubble');
 
-  let logoImg=null, aspectSet=false, bricksFg=[], bricksBg=[], effCols, effRows, lastProgress=0;
-  let _orderFg=[], _orderBg=[];
-
-  // Dev banner p/ erros
-  function devInfo(msg, isErr=false){
-    dev.textContent = msg;
-    dev.className = isErr ? 'err' : '';
-    dev.style.display = 'block';
-  }
-  window.onerror = function(msg, src, line, col, err){ devInfo('ERRO: '+msg, true); };
-
-  // Utilitários
+  // -----------------------------------------------
+  // UTILS
+  // -----------------------------------------------
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
-  function parseGVizDate(v){
-    if(!v) return null;
-    if (typeof v === 'string'){
-      // tenta padrão Date(YYYY,MM,DD)
-      let m = v.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
-      if(m) return new Date(Number(m[1]), Number(m[2]), Number(m[3])); // já é 0-based
-      // tenta números soltos
-      const p = v.match(/\d+/g);
-      if(p && p.length>=3) return new Date(Number(p[0]), Number(p[1])-1, Number(p[2]));
-    }
-    return null;
-  }
 
-  // Paleta
-  const PALETTES = {
-    brand2:['#0A4AA6','#F2C035'],
-    brand3:['#0A4AA6','#F2C035','#8B1E1E'],
-    brand5:['#0A4AA6','#F2C035','#8B1E1E','#A35A41','#2D2A2A']
-  };
-  const hex2rgb = h => { const n=parseInt(h.replace('#',''),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; };
-  const dist2 = (a,b)=>{const dr=a.r-b.r,dg=a.g-b.g,db=a.b-b.b;return dr*dr+dg*dg+db*db};
-  function mapToPalette(r,g,b,name){
-    const p=PALETTES[name]; if(!p) return `rgb(${r},${g},${b})`;
-    let best=p[0], dBest=Infinity, c={r,g,b};
-    for(const h of p){ const d=dist2(c,hex2rgb(h)); if(d<dBest){dBest=d;best=h} }
-    return best;
-  }
-
-  // Canvas p/ amostrar cores do logo
+  // -----------------------------------------------
+  // LOGO (carrega, define aspect-ratio do painel e colore tijolos)
+  // -----------------------------------------------
   const paintCanvas = document.createElement('canvas');
   const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
-  const makeSampler = (data,W,H)=>(x,y)=>{
-    const xi=Math.max(0,Math.min(W-1,Math.round(x)));
-    const yi=Math.max(0,Math.min(H-1,Math.round(y)));
-    const i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]];
-  };
-  const median = a => {const b=a.slice().sort((m,n)=>m-n); return b[Math.floor(b.length/2)]};
+  let logoImg = null, aspectSet = false;
+  let bricksFg = [], bricksBg = [];
+  let lastProgress = 0;
+  let effCols, effRows;
 
-  // Logo
   function loadLogo(src){
     return new Promise((resolve)=>{
       const im = new Image();
@@ -205,146 +217,301 @@ body{
     aspectSet = true;
   }
 
+  // Paletas: azul / amarelo / tijolo extra (para letras, etc.)
+  const PALETTES = {
+    brand2: ['#0A4AA6', '#F2C035'],
+    brand3: ['#0A4AA6', '#F2C035', '#8B1E1E'],
+  };
+  const hex2rgb = hex => { const n=parseInt(hex.replace('#',''),16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}; };
+  const dist2 = (a,b) => { const dr=a.r-b.r,dg=a.g-b.g,db=a.b-b.b; return dr*dr+dg*dg+db*db; };
+  function mapToPalette(r,g,b,name){
+    const p = PALETTES[name]; if(!p) return `rgb(${r},${g},${b})`;
+    let best=p[0], bestD=Infinity, c1={r,g,b};
+    for(const h of p){ const d=dist2(c1, hex2rgb(h)); if(d<bestD){bestD=d; best=h;} }
+    return best;
+  }
+  function makeSampler(data,W,H){ return function px(x,y){ const xi=Math.max(0,Math.min(W-1,Math.round(x))); const yi=Math.max(0,Math.min(H-1,Math.round(y))); const i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]; }; }
+  function median(a){ const b=a.slice().sort((m,n)=>m-n); return b[Math.floor(b.length/2)]; }
+
   function colorizeBricks(){
     if(!logoImg) return;
-    const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
+    const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
     paintCanvas.width=W; paintCanvas.height=H; pctx.clearRect(0,0,W,H);
-    // desenha logo centralizado
-    const ar=logoImg.naturalWidth/logoImg.naturalHeight; let dw=W, dh=W/ar; if(dh>H){dh=H; dw=H*ar}
-    const dx=(W-dw)/2, dy=(H-dh)/2; pctx.drawImage(logoImg,dx,dy,dw,dh);
-    const buf=pctx.getImageData(0,0,W,H).data;
-    const samp=makeSampler(buf,W,H);
+
+    // desenha o logo centralizado
+    const ar = logoImg.naturalWidth / logoImg.naturalHeight;
+    let dw=W, dh=W/ar; if(dh>H){ dh=H; dw=H*ar; }
+    const dx=(W-dw)/2, dy=(H-dh)/2;
+    pctx.drawImage(logoImg, dx, dy, dw, dh);
+
+    const buf = pctx.getImageData(0,0,W,H).data;
+    const samp = makeSampler(buf, W, H);
+
     for(let i=0;i<bricksFg.length;i++){
-      const f=bricksFg[i], b=bricksBg[i], x=f._x, y=f._y, w=f._w, h=f._h;
+      const f = bricksFg[i], b = bricksBg[i];
+      const x=f._x, y=f._y, w=f._w, h=f._h;
+
+      // amostragem robusta (centro, cantos e meios)
       const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
-      const rs=[],gs=[],bs=[],as=[]; for(const [px,py] of pts){ const d=samp(px,py); rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]); }
-      const A=median(as), ff=f.querySelector('.fill'), bf=b.querySelector('.fill');
-      if (A<100){ ff.style.background='transparent'; bf.style.opacity='1'; }
-      else{ const r=median(rs), g=median(gs), bb=median(bs); ff.style.background=mapToPalette(r,g,bb, CONFIG.palette); bf.style.opacity='0'; }
+      const rs=[],gs=[],bs=[],as=[];
+      for(const [px,py] of pts){ const d=samp(px,py); rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]); }
+      const A=median(as);
+      const ff=f.querySelector('.fill'), bf=b.querySelector('.fill');
+
+      if (A < 100){ // transparência ⇒ deixa tijolo do fundo
+        ff.style.background='transparent';
+        bf.style.opacity='1';
+      }else{
+        const r=median(rs), g=median(gs), b3=median(bs);
+        ff.style.background = mapToPalette(r,g,b3, CONFIG.palette);
+        bf.style.opacity='0';
+      }
     }
   }
 
-  // Grade de tijolos
-  function buildOrder(rows,cols){ const of=[],ob=[]; for(let r=rows-1;r>=0;r--){ for(let c=0;c<cols;c++){ const i=r*cols+c; of.push(bricksFg[i]); ob.push(bricksBg[i]); } } return [of,ob]; }
   function layoutBricks(){
     ensureAspectFromLogo();
-    const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
-    const cols=CONFIG.cols, rows=CONFIG.rows, gap=CONFIG.gap;
-    let brickW=Math.floor((W-(cols+1)*gap)/cols); if(brickW<2) brickW=2;
-    let offset=Math.floor(brickW/2), gridWEven=cols*brickW+(cols+1)*gap, gridWOdd=gridWEven+offset;
-    if(gridWOdd>W){ const extra=gridWOdd-W, reduce=Math.ceil(extra/cols); brickW=Math.max(2,brickW-reduce); offset=Math.floor(brickW/2); gridWEven=cols*brickW+(cols+1)*gap; gridWOdd=gridWEven+offset; }
-    const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows));
-    const gridWMax=Math.max(gridWEven,gridWOdd); const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
-    const total=rows*cols;
-    if(bricksFg.length!==total){
-      bricksFgEl.innerHTML=''; bricksBgEl.innerHTML=''; bricksFg=[]; bricksBg=[];
+    const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight; if(!W||!H) return;
+
+    // grade
+    if (CONFIG.brickPx && CONFIG.brickPx > 0){
+      const bw = CONFIG.brickPx, bh = Math.round(bw*0.6);
+      effCols = Math.max(20, Math.floor((W - CONFIG.gap) / (bw + CONFIG.gap)));
+      effRows = Math.max(12, Math.floor((H - CONFIG.gap) / (bh + CONFIG.gap)));
+    }
+    const cols = (typeof effCols==='number' && effCols>0)? effCols : CONFIG.cols;
+    const rows = (typeof effRows==='number' && effRows>0)? effRows : CONFIG.rows;
+    const gap = CONFIG.gap;
+
+    let brickW = Math.floor((W - (cols+1)*gap) / cols);
+    if (brickW < 2) brickW = 2;
+    let offset = Math.floor(brickW/2);
+
+    // centraliza a grade considerando linhas ímpares deslocadas
+    let gridWEven = cols*brickW + (cols+1)*gap;
+    let gridWOdd  = gridWEven + offset;
+    if (gridWOdd > W){
+      const extra = gridWOdd - W, reduce = Math.ceil(extra/cols);
+      brickW = Math.max(2, brickW - reduce);
+      offset = Math.floor(brickW/2);
+      gridWEven = cols*brickW + (cols+1)*gap;
+      gridWOdd  = gridWEven + offset;
+    }
+    const brickH = Math.max(2, Math.floor((H - (rows+1)*gap)/rows));
+    const gridWMax = Math.max(gridWEven, gridWOdd);
+    const startXBase = Math.max(gap, Math.floor((W - gridWMax)/2) + gap);
+
+    const total = rows*cols;
+    if (bricksFg.length !== total){
+      bricksFgEl.innerHTML=''; bricksBgEl.innerHTML='';
+      bricksFg=[]; bricksBg=[];
       const ff=document.createDocumentFragment(), bb=document.createDocumentFragment();
       for(let i=0;i<total;i++){
-        const f=document.createElement('div'); f.className='brick'; f.appendChild(document.createElement('div')).className='fill'; ff.appendChild(f); bricksFg.push(f);
-        const b=document.createElement('div'); b.className='brick'; b.appendChild(document.createElement('div')).className='fill'; bb.appendChild(b); bricksBg.push(b);
+        const f=document.createElement('div'); f.className='brick';
+        f.appendChild(document.createElement('div')).className='fill';
+        ff.appendChild(f); bricksFg.push(f);
+
+        const b=document.createElement('div'); b.className='brick';
+        b.appendChild(document.createElement('div')).className='fill';
+        bb.appendChild(b); bricksBg.push(b);
       }
       bricksFgEl.appendChild(ff); bricksBgEl.appendChild(bb);
     }
-    let idx=0; for(let r=0;r<rows;r++){ const startX=startXBase+(r%2?offset:0);
-      for(let c=0;c<cols;c++){ const x=startX+c*(brickW+gap), y=gap+r*(brickH+gap);
-        const f=bricksFg[idx], b=bricksBg[idx];
-        f.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; f._x=x; f._y=y; f._w=brickW; f._h=brickH;
-        b.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } }
-    colorizeBricks(); applyProgress(lastProgress);
+
+    let idx=0;
+    for(let r=0;r<rows;r++){
+      const startX = startXBase + (r%2 ? offset : 0);
+      for(let c=0;c<cols;c++){
+        const x = startX + c*(brickW+gap);
+        const y = gap + r*(brickH+gap);
+        const f = bricksFg[idx], b = bricksBg[idx];
+        f.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
+        f._x=x; f._y=y; f._w=brickW; f._h=brickH;
+        b.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
+        idx++;
+      }
+    }
+
+    colorizeBricks();
+    applyProgress(lastProgress);
+  }
+
+  function buildOrder(){
+    const cols = (typeof effCols==='number' && effCols>0)? effCols : CONFIG.cols;
+    const rows = (typeof effRows==='number' && effRows>0)? effRows : CONFIG.rows;
+    const orderedFg=[], orderedBg=[];
+    for(let r=rows-1;r>=0;r--){
+      for(let c=0;c<cols;c++){
+        const i = r*cols + c;
+        orderedFg.push(bricksFg[i]); orderedBg.push(bricksBg[i]);
+      }
+    }
+    return [orderedFg, orderedBg];
   }
 
   function applyProgress(p){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
-    [_orderFg, _orderBg] = buildOrder(CONFIG.rows, CONFIG.cols);
-    const total=_orderFg.length; if(!total) return;
+    const [orderFg, orderBg] = buildOrder(); const total = orderFg.length; if(!total) return;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
+
     for(let i=0;i<total;i++){
-      const fF=_orderFg[i].querySelector('.fill'), fB=_orderBg[i].querySelector('.fill');
-      _orderFg[i].classList.remove('filled','partial'); fF.style.width='0%'; _orderBg[i].classList.remove('filled','partial'); fB.style.width='0%';
-      if(i<filled){ _orderFg[i].classList.add('filled'); fF.style.width='100%'; _orderBg[i].classList.add('filled'); fB.style.width='100%'; }
+      const fF=orderFg[i].querySelector('.fill'), fB=orderBg[i].querySelector('.fill');
+      orderFg[i].classList.remove('filled','partial'); fF.style.width='0%';
+      orderBg[i].classList.remove('filled','partial'); fB.style.width='0%';
+      if(i<filled){ orderFg[i].classList.add('filled'); fF.style.width='100%';
+                    orderBg[i].classList.add('filled'); fB.style.width='100%'; }
     }
     if(filled<total){
-      const fF=_orderFg[filled].querySelector('.fill'), fB=_orderBg[filled].querySelector('.fill'); const percent=Math.round(frac*100)+'%';
-      _orderFg[filled].classList.add('partial'); fF.style.width=percent; _orderBg[filled].classList.add('partial'); fB.style.width=percent;
+      const fF=orderFg[filled].querySelector('.fill'), fB=orderBg[filled].querySelector('.fill');
+      const percent=Math.round(frac*100)+'%';
+      orderFg[filled].classList.add('partial'); fF.style.width=percent;
+      orderBg[filled].classList.add('partial'); fB.style.width=percent;
+    }
+
+    // hook para animação do mascote
+    if (window._hookAfterApplyProgress){
+      window._hookAfterApplyProgress({ filled, total });
     }
   }
 
-  // Sheets (painel)
+  // -----------------------------------------------
+  // BUSCA DA PLANILHA (campanha dinâmica por data)
+  // -----------------------------------------------
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
     const params=new URLSearchParams({ tqx:'out:json', sheet:CONFIG.sheetName, range:CONFIG.range, t:Date.now()+'' });
     try{
-      const res=await fetch(`${base}?${params}`,{ cache:'no-store' }); const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); const data=JSON.parse(m[1]); const rows=data.table.rows||[];
+      const res=await fetch(`${base}?${params}`,{ cache:'no-store' });
+      const txt=await res.text();
+      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
+      const data=JSON.parse(m[1]); const rows=data.table.rows||[];
 
+      // arrecadado
       const raisedRow = rows.find(r => r.c?.[0]?.v?.toString().trim().toLowerCase() === 'arrecadado');
       const raised = raisedRow ? Number(raisedRow.c?.[1]?.v || 0) : 0;
 
+      // meta ativa (por data)
       const today = new Date(); today.setHours(0,0,0,0);
       let activeGoal=0, activeLabel='Meta';
-
       for (const r of rows){
-        const label=r.c?.[0]?.v?.toString().trim();
-        if(!label || label.toLowerCase()==='arrecadado') continue;
-        const goal=Number(r.c?.[1]?.v || 0);
-        const s=r.c?.[2]?.v, e=r.c?.[3]?.v;
-        if(s && e){
-          const S=parseGVizDate(s), E=parseGVizDate(e);
-          if(S && E && today>=S && today<=E){ activeGoal=goal; activeLabel=label; break; }
+        const label = r.c?.[0]?.v?.toString().trim();
+        if (!label || label.toLowerCase()==='arrecadado') continue;
+        const goal = Number(r.c?.[1]?.v || 0);
+        const s = r.c?.[2]?.v, e = r.c?.[3]?.v;
+        if (s && e){
+          const S = new Date(...s.match(/\d+/g).map(Number));
+          const E = new Date(...e.match(/\d+/g).map(Number));
+          if (today >= S && today <= E){ activeGoal=goal; activeLabel=label; break; }
         }
       }
-      if(!activeGoal && rows.length>1){
-        // pega a primeira linha “de meta” depois do arrecadado
-        const firstGoalRow = rows.find(r => (r.c?.[0]?.v||'').toString().trim().toLowerCase()!=='arrecadado');
-        if(firstGoalRow){
-          activeLabel = (firstGoalRow.c?.[0]?.v||'').toString().trim() || 'Meta';
-          activeGoal  = Number(firstGoalRow.c?.[1]?.v || 0);
-        }
+      if (!activeGoal && rows.length>1){
+        const r = rows[1];
+        activeLabel = r.c?.[0]?.v?.toString().trim() || 'Meta';
+        activeGoal = Number(r.c?.[1]?.v || 0);
       }
 
-      const p=activeGoal>0 ? (raised/activeGoal) : 0;
+      const p = activeGoal>0 ? raised/activeGoal : 0;
       applyProgress(p);
-
       hud.raised.textContent = formatBRL(raised);
       hud.goal.textContent   = formatBRL(activeGoal);
       hud.goalLabel.textContent = activeLabel;
       hud.pct.textContent    = Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',')+'%';
       hud.updated.textContent= new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
-
-      devInfo('JS OK');
     }catch(e){
-      console.error('Planilha painel:', e);
-      devInfo('ERRO ao buscar planilha (ver console).', true);
-      if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; }
+      console.error(e);
+      if(hud.updated.textContent==='—') hud.updated.textContent='(aguardando planilha)';
     }
   }
 
-  // Mascote (opcional) — aparece se imagem existir
-  (function bootMascot(){
-    const img = document.getElementById('mascot');
-    const bubble = document.getElementById('bubble');
-    const candidates = ['Tio_Jolinho_tijolo.png','Tio_Jolinho_carrinho.png','Tio_Jolinho_martelo.png','mascot.png','mascote.png'];
-    (function tryNext(list){
-      const src=list.shift(); if(!src){ img.style.display='none'; return; }
-      const probe=new Image();
-      probe.onload=()=>{ img.src=src+'?v='+Date.now(); img.style.display='block'; };
-      probe.onerror=()=>tryNext(list);
-      probe.src=src+'?v='+Date.now();
-    })(candidates.slice());
+  // -----------------------------------------------
+  // MASCOTE (auto-detecção + interações leves)
+  // -----------------------------------------------
+  const LSKEY='tj_opts_v1';
+  const saved = JSON.parse(localStorage.getItem(LSKEY)||'{}');
+  const MASCOT_CANDIDATES = [
+    saved.mascot, 'mascot.png','mascote.png',
+    'Tio_Jolinho_tijolo.png','Tio_Jolinho_carrinho.png','Tio_Jolinho_martelo.png',
+    'Sr._Construtino_colher.png','Lumininha_trena.png'
+  ].filter(Boolean);
 
-    img.addEventListener('click', ()=>{
-      img.classList.remove('wave'); void img.offsetWidth; img.classList.add('wave');
-      bubble.textContent='Cada Tijolo Conta!'; bubble.classList.add('show');
-      clearTimeout(bootMascot._t); bootMascot._t=setTimeout(()=>bubble.classList.remove('show'), 1600);
+  function pickFirstExisting(list){
+    return new Promise(resolve=>{
+      const next=()=>{
+        const src=list.shift(); if(!src) return resolve(null);
+        const im=new Image();
+        im.onload = ()=>resolve(src);
+        im.onerror= next;
+        im.src = src + (src.includes('?')?'&':'?') + 'v=' + Date.now();
+      };
+      next();
     });
-  })();
+  }
 
-  // Boot
-  window.addEventListener('resize', debounce(layoutBricks,120));
+  async function bootMascot(){
+    const chosen = await pickFirstExisting(MASCOT_CANDIDATES.slice());
+    if(!chosen) return;
+    mascotImg.src = chosen + (chosen.includes('?')?'&':'?') + 'v=' + Date.now();
+    mascotImg.style.display='block';
+    mascotImg.classList.add('bob');
+  }
+  bootMascot();
+
+  function say(text, ms=2200){
+    if(!mascotBubble) return;
+    mascotBubble.textContent = text;
+    mascotBubble.classList.add('show');
+    clearTimeout(say._t);
+    say._t = setTimeout(()=>mascotBubble.classList.remove('show'), ms);
+  }
+  mascotImg.addEventListener('click', ()=>{
+    mascotImg.classList.remove('wave'); void mascotImg.offsetWidth; mascotImg.classList.add('wave');
+    say('Obrigado! Cada tijolo conta ❤');
+  });
+
+  // mini-animação de “jogar tijolo” quando o número de tijolos aumenta
+  let _prevFilled=null, _bootedOnce=false;
+  function animateBrickTo(index){
+    try{
+      const b = (bricksFg||[])[index]; if(!b || !mascotImg) return;
+      const rb=b.getBoundingClientRect(), rm=mascotImg.getBoundingClientRect();
+      const sx = rm.left + rm.width*0.20, sy = rm.top + rm.height*0.66;
+      const ex = rb.left + b._w/2,         ey = rb.top + b._h/2;
+
+      const flying=document.createElement('div');
+      flying.className='throw-brick';
+      flying.style.left=sx+'px'; flying.style.top=sy+'px';
+      flying.style.width=Math.max(8,Math.min(36,b._w))+'px';
+      flying.style.height=Math.max(5,Math.min(24,b._h))+'px';
+      document.body.appendChild(flying);
+
+      flying.animate([
+        { transform:'translate(0,0) scale(.8)', opacity:.95 },
+        { transform:`translate(${ex-sx}px, ${ey-sy}px) scale(1)`, opacity:1 }
+      ],{ duration:700, easing:'ease-out' }).onfinish=()=>flying.remove();
+
+      mascotImg.classList.remove('wave'); void mascotImg.offsetWidth; mascotImg.classList.add('wave');
+    }catch{}
+  }
+  window._hookAfterApplyProgress = function({filled,total}){
+    if(_prevFilled===null){ _prevFilled=filled; _bootedOnce=true; return; }
+    if(!_bootedOnce){ _bootedOnce=true; _prevFilled=filled; return; }
+    if(filled>_prevFilled){
+      const limit=Math.min(filled-_prevFilled, 12);
+      for(let i=_prevFilled;i<_prevFilled+limit;i++) animateBrickTo(i);
+      say('Chegou tijolo novo! 🧱');
+    }
+    _prevFilled=filled;
+  };
+
+  // -----------------------------------------------
+  // BOOT
+  // -----------------------------------------------
+  window.addEventListener('resize', debounce(layoutBricks, 120));
   window.addEventListener('orientationchange', ()=> setTimeout(layoutBricks,150));
+
   loadLogo(CONFIG.logo).then(ok=>{ if(ok){ ensureAspectFromLogo(); layoutBricks(); } });
   fetchProgress();
-  setInterval(fetchProgress, 30000);
+  setInterval(fetchProgress, CONFIG.pollMs);
 })();
 </script>
 </body>
