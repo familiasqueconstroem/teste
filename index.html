@@ -6,7 +6,7 @@
 <title>Tijolômetro — Cada Tijolo Conta</title>
 <style>
 :root{
-  /* Cores */
+  /* Cores base */
   --bg:#FFFAF5; --grout:#E5DBD1; --grid:#CDBFB3; --brick-bg:#a35a41; --joint:0.8px;
   /* Layout */
   --pad:0px; --panel-max:1600px;
@@ -93,23 +93,37 @@ body{
 @media (max-width:640px){ .mascot{ right:8px; bottom:8px } .mascot-bubble{ right:calc(var(--mascot-size) - 16px) } }
 @media (prefers-reduced-motion: reduce){ .mascot.bob, .mascot.wave{ animation:none !important } }
 
-/* ----- FAB + Painel de Opções ----- */
-.fab{position:fixed;right:18px;bottom:18px;z-index:9998;width:54px;height:54px;border-radius:50%;
-  background:#0A4AA6;color:#fff;display:flex;align-items:center;justify-content:center;
+/* ----- FABs + Painel (simples) ----- */
+.fab{position:fixed;right:18px;z-index:9998;width:54px;height:54px;border-radius:50%;
+  color:#fff;display:flex;align-items:center;justify-content:center;
   box-shadow:0 12px 28px rgba(0,0,0,.18);cursor:pointer;font-size:22px;border:0}
 .fab:active{transform:scale(.98)}
-.drawer{position:fixed;inset:0 0 0 auto;width:360px;max-width:92vw;background:#fff;border-left:1px solid #eee;
+#fab{bottom:18px;background:#0A4AA6}
+#shareFab{bottom:86px;background:#25D366}
+.drawer{position:fixed;inset:0 0 0 auto;width:340px;max-width:92vw;background:#fff;border-left:1px solid #eee;
   box-shadow:-16px 0 40px rgba(0,0,0,.18);transform:translateX(105%);transition:transform .28s ease;z-index:9999;
   display:flex;flex-direction:column}
 .drawer.open{transform:none}
 .drawer .head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee}
 .drawer .body{padding:12px 16px 18px;overflow:auto}
-.drawer h4{margin:14px 0 8px 0}
-.drawer .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
-.drawer select,.drawer input[type="text"],.drawer input[type="number"],.drawer input[type="range"]{width:100%;font:inherit;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff}
+.drawer .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.drawer select,.drawer input[type="range"]{width:100%;font:inherit;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff}
 .drawer .btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer}
 .drawer .btn.primary{background:#0A4AA6;color:#fff;border-color:#0A4AA6}
+.drawer h4{margin:14px 0 6px 0}
 .drawer .small{font-size:12px;color:#666}
+
+/* ----- Share Sheet (seleção de mensagem) ----- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.25);display:none;align-items:flex-end;justify-content:center;z-index:10000}
+.modal.show{display:flex}
+.sheet{background:#fff; width:min(640px, 96vw); border-radius:16px 16px 0 0; box-shadow:0 -12px 36px rgba(0,0,0,.3); padding:14px 14px 16px}
+.sheet .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sheet .opt{display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #eee; border-radius:12px; margin:8px 0}
+.sheet .opt input{margin-top:2px}
+.sheet .preview{font-size:14px; background:#fafafa; border:1px dashed #ddd; border-radius:10px; padding:10px; margin-top:8px; white-space:pre-wrap}
+.sheet .row{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
+.sheet .btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer}
+.sheet .btn.primary{background:#25D366;color:#fff;border-color:#25D366}
 </style>
 </head>
 <body>
@@ -139,11 +153,14 @@ body{
     </div>
   </div>
 
-  <!-- Tooltip genérico (tap no tijolo) -->
+  <!-- Tooltip genérico -->
   <div id="tip" style="position:fixed;display:none;min-width:140px;max-width:60ch;background:#fff;border:1px solid #eee;border-radius:10px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9990;font-size:13px;line-height:1.25"></div>
 
-  <!-- FAB + Painel -->
+  <!-- FABs -->
+  <button class="fab" id="shareFab" title="Compartilhar">📣</button>
   <button class="fab" id="fab" title="Opções">⚙️</button>
+
+  <!-- Painel (simplificado) -->
   <aside class="drawer" id="drawer" aria-label="Opções do Tijolômetro">
     <div class="head">
       <strong>Opções</strong>
@@ -154,6 +171,7 @@ body{
       <div class="row">
         <label>Paleta</label>
         <select id="optPalette">
+          <option value="brand5">Brand 5 (logo 5 cores)</option>
           <option value="brand3">Brand 3 (azul/amarelo/vinho)</option>
           <option value="brand2">Brand 2 (azul/amarelo)</option>
         </select>
@@ -167,57 +185,17 @@ body{
       </div>
 
       <h4>Mascote</h4>
-      <div class="row">
-        <label><input type="checkbox" id="optMascotOn" checked> Mostrar mascote</label>
-      </div>
-      <div class="row">
-        <label>Arquivo (se existir na pasta)</label>
-        <select id="optMascotSrc">
-          <option value="">(auto)</option>
-          <option>Tio_Jolinho_tijolo.png</option>
-          <option>Tio_Jolinho_carrinho.png</option>
-          <option>Tio_Jolinho_martelo.png</option>
-          <option>Sr._Construtino_colher.png</option>
-          <option>Lumininha_trena.png</option>
-          <option>mascot.png</option>
-        </select>
-      </div>
+      <div class="row"><label><input type="checkbox" id="optMascotOn" checked> Mostrar mascote</label></div>
 
-      <h4>Doadores (tooltips)</h4>
-      <div class="row"><label><input type="checkbox" id="optDonorsOn"> Ativar tooltips</label></div>
+      <h4>Doadores</h4>
+      <div class="row"><label><input type="checkbox" id="optDonorsOn"> Tooltips de doadores</label></div>
+      <div class="small">Lê automaticamente da aba <b>TIJOLO_Respostas</b> (Forms):<br>• Mensagem: cabeçalho <b>“Texto do tijolo 1 (máx. 40)”</b><br>• Nome: 1ª coluna cujo cabeçalho contém “nome”</div>
+
+      <h4>Som</h4>
+      <div class="row"><label><input type="checkbox" id="optSoundOn"> Som ligado</label></div>
       <div class="row">
-        <label>Fonte</label>
-        <select id="optDonorSource">
-          <option value="doadores">Aba “Doadores” (A2:C)</option>
-          <option value="forms">Aba do Forms (mapear cabeçalhos)</option>
-        </select>
-      </div>
-      <div id="boxDoadores">
-        <div class="row"><label>Sheet (aba)</label><input type="text" id="optDonorsSheet" placeholder="Doadores"></div>
-        <div class="row"><label>Range</label><input type="text" id="optDonorsRange" placeholder="A2:C2000"></div>
-      </div>
-      <div id="boxForms" style="display:none">
-        <div class="row"><label>Sheet (aba do Forms)</label><input type="text" id="optFormsSheet" placeholder="Form Responses 1"></div>
-        <div class="row"><label>Range (inclui cabeçalho na linha 1)</label><input type="text" id="optFormsRange" placeholder="A1:Z1000"></div>
-        <div class="row"><button class="btn" id="btnDetectHeaders">Detectar cabeçalhos</button></div>
-        <div class="row">
-          <label>Coluna Nome</label><select id="optHdrName"></select>
-        </div>
-        <div class="row">
-          <label>Coluna Mensagem (opcional)</label><select id="optHdrMsg"><option value="">(nenhuma)</option></select>
-        </div>
-        <div class="row">
-          <label>Coluna Valor (opcional)</label><select id="optHdrVal"><option value="">(nenhuma)</option></select>
-        </div>
-        <div class="small">Dica: essas listas vêm da linha 1 da aba do Forms.</div>
-      </div>
-      <div class="row">
-        <label>Exibir nome</label>
-        <select id="optNamesMode">
-          <option value="first">Nome curto</option>
-          <option value="full">Nome completo</option>
-          <option value="off">Ocultar</option>
-        </select>
+        <label>Trilha</label>
+        <select id="optTrack"></select>
       </div>
 
       <h4>Ações</h4>
@@ -226,27 +204,64 @@ body{
         <button class="btn primary" id="btnRefresh">Atualizar agora</button>
       </div>
       <div class="row"><button class="btn" id="btnReset">Restaurar padrão</button></div>
-      <div class="row"><span class="small">As preferências ficam salvas neste navegador.</span></div>
     </div>
   </aside>
 
+  <!-- Share Sheet (seleção de mensagem) -->
+  <div class="modal" id="shareModal" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-label="Compartilhar Tijolômetro">
+      <div class="head">
+        <strong>Compartilhar</strong>
+        <button class="btn" id="shareClose">Fechar</button>
+      </div>
+      <div class="opt"><input type="radio" name="tpl" id="tpl1" value="1">
+        <label for="tpl1"><b>#1</b> — Direto e caloroso<br>
+          <small>🧱 Famílias que Constroem – Associação de Pais do Colégio Luzeiros. Já chegamos a {PCT} da meta de {META}. Veja o Tijolômetro e participe: {LINK} 💛</small>
+        </label>
+      </div>
+      <div class="opt"><input type="radio" name="tpl" id="tpl2" value="2">
+        <label for="tpl2"><b>#2</b> — Convite<br>
+          <small>💛 Cada Tijolo Conta! A Associação de Pais do Colégio Luzeiros convida você a somar na campanha Famílias que Constroem. Estamos em {PCT} da meta ({META}). Participe: {LINK}</small>
+        </label>
+      </div>
+      <div class="opt"><input type="radio" name="tpl" id="tpl3" value="3">
+        <label for="tpl3"><b>#3</b> — Bem curto (WhatsApp)<br>
+          <small>🚧 Famílias que Constroem — Associação de Pais do Colégio Luzeiros. {PCT} da meta ({META}). Junte-se: {LINK} 🧱</small>
+        </label>
+      </div>
+      <div class="preview" id="sharePreview">Prévia…</div>
+      <div class="row">
+        <button class="btn" id="shareSetDefault">Usar como padrão</button>
+        <button class="btn primary" id="shareGo">Compartilhar</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 (function(){
+  // -------------------- IDs das planilhas --------------------
+  const FORMS_SHEET_ID = '1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I'; // <- DOADORES (Forms)
+  const PANEL_SHEET_ID = '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY'; // <- Tijolômetro (arrecadado/meta)
+
   // -------------------- CONFIG + preferências --------------------
   const qs = new URLSearchParams(location.search);
   const DEFAULTS = {
-    sheetId: qs.get('sheet_id') || '1ZL3CcoMDVdQE8ooRX9L5QFqX1Rc70L9uguDxcmTJqGY',
+    sheetId: qs.get('sheet_id') || PANEL_SHEET_ID, // painel
     sheetName: qs.get('sheet')  || 'Tijolometro',
     range: qs.get('range')      || 'A1:D10',  // Rótulo / Valor / Início / Fim
     logo:  qs.get('logo')       || 'logo.png',
-    palette: qs.get('palette')  || 'brand3',
+    palette: qs.get('palette')  || 'brand5',
     cols: 120, rows: 72, brickPx: 0, gap: 1, pollMs: 30000,
-    mascotOn:true, mascotSrc:'',  // auto por padrão
-    donorsOn:false, donorSource:'doadores',
-    donorsSheet:'Doadores', donorsRange:'A2:C2000',
-    formsSheet:'Form Responses 1', formsRange:'A1:Z1000',
-    hdrName:'', hdrMsg:'', hdrVal:'',
-    namesMode:'first'
+    mascotOn:true,
+
+    donorsOn:false,
+    donorsSheetId: FORMS_SHEET_ID,     // <- lido do Forms
+    donorsSheet: 'TIJOLO_Respostas',   // <- nome da aba
+    donorsRange: 'A1:Z1000',           // <- inclui cabeçalho na linha 1
+    formsMsgHeader: 'Texto do tijolo 1 (máx. 40)',
+
+    soundOn:false,
+    trackSrc:'', // será detectado
   };
   const PREFKEY='tj:settings';
   function loadPrefs(){ try{return JSON.parse(localStorage.getItem(PREFKEY)||'{}')}catch{return{}} }
@@ -269,6 +284,15 @@ body{
   };
   const tip = document.getElementById('tip');
 
+  // estado para compartilhamento
+  const shareState = { raised:0, goal:0, pctText:'0%' };
+  const SHARE_PREF_KEY='tj:shareTpl';
+  const shareModal = document.getElementById('shareModal');
+  const shareClose = document.getElementById('shareClose');
+  const sharePreview = document.getElementById('sharePreview');
+  const shareGo = document.getElementById('shareGo');
+  const shareSetDefault = document.getElementById('shareSetDefault');
+
   // -------------------- utils --------------------
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
@@ -276,9 +300,14 @@ body{
   const paintCanvas = document.createElement('canvas');
   const pctx = paintCanvas.getContext('2d', { willReadFrequently:true });
   let logoImg=null, aspectSet=false, bricksFg=[], bricksBg=[], effCols, effRows, lastProgress=0;
+  let _orderFg=[], _orderBg=[]; // <— único lugar onde declaramos a ordem
 
   // -------------------- paleta de mapeamento --------------------
-  const PALETTES = { brand2:['#0A4AA6','#F2C035'], brand3:['#0A4AA6','#F2C035','#8B1E1E'] };
+  const PALETTES = {
+    brand2:['#0A4AA6','#F2C035'],
+    brand3:['#0A4AA6','#F2C035','#8B1E1E'],
+    brand5:['#0A4AA6','#F2C035','#8B1E1E','#A35A41','#2D2A2A']
+  };
   const hex2rgb = h => { const n=parseInt(h.replace('#',''),16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; };
   const dist2 = (a,b)=>{const dr=a.r-b.r,dg=a.g-b.g,db=a.b-b.b;return dr*dr+dg*dg+db*db};
   function mapToPalette(r,g,b,name){
@@ -354,7 +383,6 @@ body{
   }
 
   // -------------------- progresso (preenchimento) --------------------
-  let _orderFg=[], _orderBg=[];
   function applyProgress(p){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
     const cols=(typeof effCols==='number'&&effCols>0)? effCols : PREFS.cols;
@@ -371,11 +399,10 @@ body{
       const fF=_orderFg[filled].querySelector('.fill'), fB=_orderBg[filled].querySelector('.fill'); const percent=Math.round(frac*100)+'%';
       _orderFg[filled].classList.add('partial'); fF.style.width=percent; _orderBg[filled].classList.add('partial'); fB.style.width=percent;
     }
-    // Hook para mascote + doadores
     if (window._hookAfterApplyProgress) window._hookAfterApplyProgress({filled,total});
   }
 
-  // -------------------- Google Sheets (campanha ativa por data) --------------------
+  // -------------------- Google Sheets (painel) --------------------
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${PREFS.sheetId}/gviz/tq`;
     const params=new URLSearchParams({ tqx:'out:json', sheet:PREFS.sheetName, range:PREFS.range, t:Date.now()+'' });
@@ -403,24 +430,29 @@ body{
 
       const p=activeGoal>0 ? raised/activeGoal : 0;
       applyProgress(p);
+
       hud.raised.textContent = formatBRL(raised);
       hud.goal.textContent   = formatBRL(activeGoal);
       hud.goalLabel.textContent = activeLabel;
       hud.pct.textContent    = Math.max(0,Math.min(100,p*100)).toFixed(1).replace('.',',')+'%';
       hud.updated.textContent= new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+
+      // share state
+      shareState.raised = raised; shareState.goal = activeGoal; shareState.pctText = hud.pct.textContent;
+
     }catch(e){
-      console.error('Planilha:', e);
+      console.error('Planilha painel:', e);
       if(hud.updated.textContent==='—'){ hud.updated.textContent='(aguardando planilha)'; }
     }
   }
 
-  // -------------------- Doadores (aba Doadores OU aba Forms mapeada) --------------------
+  // -------------------- Doadores (Forms auto) --------------------
   let donors=[];
   function firstName(n){ if(!n) return ''; const p=n.trim().split(/\s+/); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
-  function formatName(n){ if(PREFS.namesMode==='off')return 'Doação recebida'; if(PREFS.namesMode==='full')return n||'Doação recebida'; return firstName(n||''); }
+  function formatName(n){ return n? firstName(n) : 'Doação recebida'; }
 
-  async function fetchGViz({sheet,range}){
-    const base=`https://docs.google.com/spreadsheets/d/${PREFS.sheetId}/gviz/tq`;
+  async function fetchGVizById(sheetId, sheet, range){
+    const base=`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq`;
     const params=new URLSearchParams({tqx:'out:json',sheet,range,t:Date.now()+''});
     const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
     const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); return JSON.parse(m[1]).table;
@@ -429,45 +461,30 @@ body{
   async function fetchDonors(){
     donors=[];
     if(!PREFS.donorsOn) return;
-
     try{
-      if(PREFS.donorSource==='doadores'){
-        // Nome | Mensagem | Valor
-        const table=await fetchGViz({sheet:PREFS.donorsSheet, range:PREFS.donorsRange});
-        donors=(table.rows||[]).map(r=>({
-          name:(r.c?.[0]?.v||'').toString(),
-          msg:(r.c?.[1]?.v||'').toString(),
-          value:Number(r.c?.[2]?.v||0)
-        })).filter(x=>x.name||x.msg||x.value);
-      }else{
-        // Forms: cabeçalho na linha 1 (range inclui A1)
-        const table=await fetchGViz({sheet:PREFS.formsSheet, range:PREFS.formsRange});
-        const rows=table.rows||[];
-        if(!rows.length) return;
-        // pega cabeçalho (primeira linha)
-        const headers=(rows[0].c||[]).map(c=>(c?.v||'').toString().trim());
-        const hIndex = (label)=> Math.max(0, headers.findIndex(h=>h===label));
-        const idxName = PREFS.hdrName ? hIndex(PREFS.hdrName) : -1;
-        const idxMsg  = PREFS.hdrMsg  ? hIndex(PREFS.hdrMsg)  : -1;
-        const idxVal  = PREFS.hdrVal  ? hIndex(PREFS.hdrVal)  : -1;
+      const table=await fetchGVizById(PREFS.donorsSheetId, PREFS.donorsSheet, PREFS.donorsRange);
+      const rows=table.rows||[]; if(!rows.length) return;
 
-        donors=[];
-        for(let i=1;i<rows.length;i++){
-          const c=rows[i].c||[];
-          const name = idxName>=0 ? (c[idxName]?.v||'').toString() : '';
-          const msg  = idxMsg >=0 ? (c[idxMsg ]?.v||'').toString() : '';
-          const val  = idxVal >=0 ? Number(c[idxVal]?.v||0) : 0;
-          if(name||msg||val) donors.push({name,msg,value:val});
-        }
+      const headers=(rows[0].c||[]).map(c=>(c?.v||'').toString().trim());
+      // indices
+      const idxMsg  = headers.findIndex(h => h.trim().toLowerCase() === PREFS.formsMsgHeader.trim().toLowerCase());
+      const idxName = headers.findIndex(h => /nome/i.test(h));
+      const idxVal  = headers.findIndex(h => /valor|doa(ç|c)ao|r\$/i.test(h));
+
+      for(let i=1;i<rows.length;i++){
+        const c=rows[i].c||[];
+        const name = idxName>=0 ? (c[idxName]?.v||'').toString() : '';
+        const msg  = idxMsg >=0 ? (c[idxMsg ]?.v||'').toString() : '';
+        const val  = idxVal >=0 ? Number(c[idxVal]?.v||0) : 0;
+        if(name || msg || val) donors.push({name,msg,value:val});
       }
-    }catch(e){ console.warn('Doadores: falha ao ler', e); donors=[]; }
+    }catch(e){ console.warn('Doadores (Forms):', e); donors=[]; }
   }
 
   function assignDonorsToFilled(filled){
     if(!PREFS.donorsOn || donors.length===0) return;
     for(let i=0;i<_orderFg.length;i++){
       const brick=_orderFg[i];
-      // só associa aos tijolos efetivamente cheios
       if(i<filled) brick._donor = donors[i % donors.length];
       else brick._donor = null;
     }
@@ -489,86 +506,133 @@ body{
     tip.innerHTML=html; tip.style.display='block';
     const left=Math.min(Math.max(8,rect.left+rect.width/2), innerWidth-160), top=Math.max(8,rect.top-12);
     tip.style.left=left+'px'; tip.style.top=top+'px';
-    clearTimeout(onBrickTap._t); onBrickTap._t=setTimeout(()=> tip.style.display='none', 2600);
+    clearTimeout(onBrickTap._t); onBrickTap._t=setTimeout(()=> tip.style.display='none', 2200);
   }
 
   // -------------------- Mascote --------------------
   const mascotImg = document.getElementById('mascotImg');
   const mascotBubble = document.getElementById('mascotBubble');
-  const MASCOT_CANDIDATES = [
-    () => PREFS.mascotSrc || '',
-    () => 'mascot.png', ()=>'mascote.png',
-    () => 'Tio_Jolinho_tijolo.png',
-    () => 'Tio_Jolinho_carrinho.png',
-    () => 'Tio_Jolinho_martelo.png',
-    () => 'Sr._Construtino_colher.png',
-    () => 'Lumininha_trena.png'
-  ];
-  function pickFirstExisting(list){
+  const MASCOT_CANDIDATES = ['mascot.png','mascote.png','Tio_Jolinho_tijolo.png','Tio_Jolinho_carrinho.png','Tio_Jolinho_martelo.png','Sr._Construtino_colher.png','Lumininha_trena.png'];
+
+  function pickFirstExisting(srcs){
     return new Promise(resolve=>{
-      const tryNext=()=>{
-        const get=list.shift(); if(!get) return resolve(null);
-        const src=get(); if(!src) return tryNext();
+      const next=()=>{
+        const src=srcs.shift(); if(!src) return resolve(null);
         const im=new Image();
         im.onload = ()=>resolve(src);
-        im.onerror= tryNext;
-        im.src = src + (src.includes('?')?'&':'?') + 'v=' + Date.now();
-      }; tryNext();
+        im.onerror= next;
+        im.src = src + '?v=' + Date.now();
+      }; next();
     });
   }
-  async function bootMascot(){
+  async function bootMascote(){
     if(!PREFS.mascotOn){ mascotImg.style.display='none'; return; }
     const chosen=await pickFirstExisting(MASCOT_CANDIDATES.slice());
     if(!chosen){ mascotImg.style.display='none'; return; }
-    mascotImg.src = chosen + (chosen.includes('?')?'&':'?') + 'v=' + Date.now();
+    mascotImg.src = chosen + '?v=' + Date.now();
     mascotImg.style.display='block';
     mascotImg.classList.add('bob');
   }
-  function say(text,ms=2200){
+  function say(text,ms=1800){
     if(!mascotBubble) return; mascotBubble.textContent=text; mascotBubble.classList.add('show');
     clearTimeout(say._t); say._t=setTimeout(()=>mascotBubble.classList.remove('show'),ms);
   }
-  mascotImg.addEventListener('click', ()=>{ mascotImg.classList.remove('wave'); void mascotImg.offsetWidth; mascotImg.classList.add('wave'); say('Obrigado! Cada tijolo conta ❤'); });
+  // Clique no mascote: aceno + fala + arremesso curto
+  mascotImg.addEventListener('click', ()=>{
+    mascotImg.classList.remove('wave'); void mascotImg.offsetWidth; mascotImg.classList.add('wave');
+    say('Cada Tijolo Conta!');
+    throwCuteBrick();
+    if (audioState.on) ensureAudioPlays(); // garante reprodução após gesto
+  });
 
-  // mini “jogar tijolo”
-  let _prevFilled=null,_bootedOnce=false;
-  function animateBrickTo(index){
+  function throwCuteBrick(){
     try{
-      const b=_orderFg[index]; if(!b || mascotImg.style.display==='none') return;
-      const rb=b.getBoundingClientRect(), rm=mascotImg.getBoundingClientRect();
-      const sx=rm.left+rm.width*0.20, sy=rm.top+rm.height*0.66;
-      const ex=rb.left+b._w/2,       ey=rb.top+b._h/2;
+      const rm=mascotImg.getBoundingClientRect();
+      const sx = rm.left + rm.width*0.20, sy = rm.top + rm.height*0.66;
+      const ex = sx + 80, ey = sy - 120; // arco curto para cima/direita
       const flying=document.createElement('div');
-      flying.className='throw-brick'; flying.style.left=sx+'px'; flying.style.top=sy+'px';
-      flying.style.width=Math.max(8,Math.min(36,b._w))+'px'; flying.style.height=Math.max(5,Math.min(24,b._h))+'px';
+      flying.className='throw-brick';
+      flying.style.left=sx+'px'; flying.style.top=sy+'px';
+      flying.style.width='22px'; flying.style.height='14px';
       document.body.appendChild(flying);
-      flying.animate([{transform:'translate(0,0) scale(.8)',opacity:.95},{transform:`translate(${ex-sx}px, ${ey-sy}px) scale(1)`,opacity:1}],{duration:700,easing:'ease-out'}).onfinish=()=>flying.remove();
-      mascotImg.classList.remove('wave'); void mascotImg.offsetWidth; mascotImg.classList.add('wave');
+      flying.animate([
+        { transform:'translate(0,0) scale(.9)', opacity:.95 },
+        { transform:`translate(${ex-sx}px, ${ey-sy}px) scale(1)`, opacity:1 },
+        { transform:`translate(${ex-sx+20}px, ${ey-sy+40}px) scale(.95)`, opacity:.0 }
+      ],{ duration:750, easing:'ease-out' }).onfinish=()=>flying.remove();
     }catch{}
   }
+
+  // animação somente quando AUMENTAR (não anima no 1º carregamento)
+  let _prevFilled=null,_ready=false;
   window._hookAfterApplyProgress = function({filled,total}){
     assignDonorsToFilled(filled);
-    if(_prevFilled===null){ _prevFilled=filled; _bootedOnce=true; return; }
-    if(!_bootedOnce){ _bootedOnce=true; _prevFilled=filled; return; }
+    if(_prevFilled===null){ _prevFilled=filled; _ready=true; return; }
+    if(!_ready){ _ready=true; _prevFilled=filled; return; }
     if(filled>_prevFilled){
-      const limit=Math.min(filled-_prevFilled, 12);
-      for(let i=_prevFilled;i<_prevFilled+limit;i++) animateBrickTo(i);
-      say('Chegou tijolo novo! 🧱');
+      const count=Math.min(filled-_prevFilled, 3);
+      for(let i=0;i<count;i++) throwCuteBrick();
+      say('Chegou tijolo novo! 🧱', 1600);
+      if (audioState.on) ensureAudioPlays();
     }
     _prevFilled=filled;
   };
 
-  // -------------------- Painel ⚙️ --------------------
+  // -------------------- Som (m4a preferido + mp3 fallback) --------------------
+  const audioCandidates = [
+    'trilha1.m4a','trilha1.mp3',
+    'trilha2.m4a','trilha2.mp3',
+    'Cada_Tijolo_Conta.m4a','Cada_Tijolo_Conta.mp3',
+    'cada-tijolo-conta!_ext_completa.m4a','cada-tijolo-conta!_ext_completa.mp3',
+    'cada-tijolo-conta!_6.m4a','cada-tijolo-conta!_6.mp3'
+  ];
+  const audioState = { on: !!PREFS.soundOn, track: PREFS.trackSrc || '', el: null, found: [] };
+
+  async function detectTracks(){
+    const test = (src)=> new Promise(res=>{
+      const a=new Audio(); a.preload='metadata';
+      a.oncanplaythrough=()=>res(src);
+      a.onerror=()=>res(null);
+      a.src=src+'?v='+Date.now();
+    });
+    const results = await Promise.all(audioCandidates.map(test));
+    audioState.found = results.filter(Boolean);
+    if(!audioState.track || !audioState.found.includes(audioState.track)) audioState.track = audioState.found[0]||'';
+    buildTrackSelect();
+    if(audioState.on && audioState.track) ensureAudioPlays();
+  }
+
+  function ensureAudioPlays(){
+    try{
+      if(!audioState.track){ stopAudio(); return; }
+      if(!audioState.el){
+        audioState.el = new Audio();
+        audioState.el.loop=true;
+        audioState.el.volume=0.35;
+      }
+      if(!audioState.el.src || audioState.el.src.indexOf(audioState.track)===-1){
+        audioState.el.src = audioState.track+'?v='+Date.now();
+      }
+      audioState.el.play().catch(()=>{/* precisa de gesto do usuário (clicar mascote ajuda) */});
+    }catch{}
+  }
+  function stopAudio(){ try{ if(audioState.el){ audioState.el.pause(); } }catch{} }
+
+  // -------------------- Painel (simplificado) --------------------
   const fab=document.getElementById('fab'), drawer=document.getElementById('drawer'), closeDrawer=document.getElementById('closeDrawer');
   const optPalette=document.getElementById('optPalette'), optAutoDensity=document.getElementById('optAutoDensity'), optBrickPx=document.getElementById('optBrickPx');
-  const optMascotOn=document.getElementById('optMascotOn'), optMascotSrc=document.getElementById('optMascotSrc');
-  const optDonorsOn=document.getElementById('optDonorsOn'), optDonorSource=document.getElementById('optDonorSource');
-  const optDonorsSheet=document.getElementById('optDonorsSheet'), optDonorsRange=document.getElementById('optDonorsRange');
-  const boxDoadores=document.getElementById('boxDoadores'), boxForms=document.getElementById('boxForms');
-  const optFormsSheet=document.getElementById('optFormsSheet'), optFormsRange=document.getElementById('optFormsRange');
-  const btnDetectHeaders=document.getElementById('btnDetectHeaders'), optHdrName=document.getElementById('optHdrName'), optHdrMsg=document.getElementById('optHdrMsg'), optHdrVal=document.getElementById('optHdrVal');
-  const optNamesMode=document.getElementById('optNamesMode');
+  const optMascotOn=document.getElementById('optMascotOn');
+  const optDonorsOn=document.getElementById('optDonorsOn');
+  const optSoundOn=document.getElementById('optSoundOn'), optTrack=document.getElementById('optTrack');
   const btnApply=document.getElementById('btnApply'), btnRefresh=document.getElementById('btnRefresh'), btnReset=document.getElementById('btnReset');
+
+  function buildTrackSelect(){
+    optTrack.innerHTML='';
+    audioState.found.forEach(src=>{
+      const o=document.createElement('option'); o.value=src; o.textContent=src; optTrack.appendChild(o);
+    });
+    if(audioState.track){ optTrack.value = audioState.track; }
+  }
 
   function syncControls(){
     optPalette.value = PREFS.palette;
@@ -576,96 +640,117 @@ body{
     optBrickPx.value = PREFS.brickPx || 14;
 
     optMascotOn.checked = PREFS.mascotOn;
-    optMascotSrc.value = PREFS.mascotSrc || '';
-
     optDonorsOn.checked = PREFS.donorsOn;
-    optDonorSource.value = PREFS.donorSource;
-    boxDoadores.style.display = PREFS.donorSource==='doadores' ? '' : 'none';
-    boxForms.style.display = PREFS.donorSource==='forms' ? '' : 'none';
-    optDonorsSheet.value = PREFS.donorsSheet;
-    optDonorsRange.value = PREFS.donorsRange;
-    optFormsSheet.value = PREFS.formsSheet;
-    optFormsRange.value = PREFS.formsRange;
-    optNamesMode.value = PREFS.namesMode;
 
-    // headers (se já salvos)
-    function setSel(sel, val, list){
-      sel.innerHTML=''; (list||[]).forEach(h=>{ const o=document.createElement('option'); o.textContent=h; o.value=h; sel.appendChild(o); });
-      if(val){ const o=[...sel.options].find(x=>x.value===val); if(o) sel.value=val; }
-    }
-    // placeholders; serão preenchidos ao detectar cabeçalhos
-    if(!optHdrName.options.length){ setSel(optHdrName, PREFS.hdrName, PREFS._hdrList||[]); }
-    if(!optHdrMsg.options.length){ setSel(optHdrMsg, PREFS.hdrMsg, [''].concat(PREFS._hdrList||[])); }
-    if(!optHdrVal.options.length){ setSel(optHdrVal, PREFS.hdrVal, [''].concat(PREFS._hdrList||[])); }
+    optSoundOn.checked = PREFS.soundOn;
+    buildTrackSelect();
   }
-  function storePrefs(){
-    savePrefs(PREFS);
-  }
-
-  optAutoDensity.addEventListener('change',()=>{ optBrickPx.disabled=optAutoDensity.checked; });
-  optDonorSource.addEventListener('change',()=>{ PREFS.donorSource=optDonorSource.value; boxDoadores.style.display=PREFS.donorSource==='doadores'?'':'none'; boxForms.style.display=PREFS.donorSource==='forms'?'':'none'; });
 
   fab.onclick = ()=> drawer.classList.add('open');
   closeDrawer.onclick = ()=> drawer.classList.remove('open');
 
-  btnDetectHeaders.onclick = async()=>{
-    try{
-      const table=await fetchGViz({sheet:optFormsSheet.value||'Form Responses 1', range:optFormsRange.value||'A1:Z1000'});
-      const headers=(table.rows?.[0]?.c||[]).map(c=>(c?.v||'').toString().trim()).filter(Boolean);
-      PREFS._hdrList=headers;
-      function fill(sel, current, allowEmpty=false){
-        sel.innerHTML='';
-        if(allowEmpty){ const o=document.createElement('option'); o.value=''; o.textContent='(nenhuma)'; sel.appendChild(o); }
-        headers.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=h; sel.appendChild(o); });
-        if(current && headers.includes(current)) sel.value=current;
-      }
-      fill(optHdrName, PREFS.hdrName, false);
-      fill(optHdrMsg,  PREFS.hdrMsg,  true);
-      fill(optHdrVal,  PREFS.hdrVal,  true);
-    }catch(e){ alert('Não foi possível ler os cabeçalhos. Confira o nome da aba/range e se a planilha está compartilhada como “leitor por link”.'); }
-  };
-
   btnApply.onclick = async ()=>{
     PREFS.palette = optPalette.value;
     PREFS.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
-
     PREFS.mascotOn = !!optMascotOn.checked;
-    PREFS.mascotSrc = optMascotSrc.value || '';
-
     PREFS.donorsOn = !!optDonorsOn.checked;
-    PREFS.donorSource = optDonorSource.value;
-    PREFS.donorsSheet = optDonorsSheet.value || 'Doadores';
-    PREFS.donorsRange = optDonorsRange.value || 'A2:C2000';
-    PREFS.formsSheet  = optFormsSheet.value  || 'Form Responses 1';
-    PREFS.formsRange  = optFormsRange.value  || 'A1:Z1000';
-    PREFS.hdrName = optHdrName.value || '';
-    PREFS.hdrMsg  = optHdrMsg.value  || '';
-    PREFS.hdrVal  = optHdrVal.value  || '';
-    PREFS.namesMode = optNamesMode.value;
+    PREFS.soundOn = !!optSoundOn.checked;
+    PREFS.trackSrc = optTrack.value || '';
 
-    storePrefs();
-    colorizeBricks(); layoutBricks(); await fetchDonors();
-    await fetchProgress();
-    await bootMascot();
+    savePrefs(PREFS);
+
+    // aplica
+    colorizeBricks(); layoutBricks(); await fetchDonors(); await fetchProgress(); await bootMascote();
+    if(PREFS.soundOn){ audioState.on=true; audioState.track=PREFS.trackSrc; ensureAudioPlays(); }
+    else { audioState.on=false; stopAudio(); }
     drawer.classList.remove('open');
   };
   btnRefresh.onclick = ()=>{ fetchProgress(); fetchDonors(); };
   btnReset.onclick = ()=>{
     Object.keys(PREFS).forEach(k=>delete PREFS[k]); Object.assign(PREFS, DEFAULTS);
-    storePrefs(); syncControls(); colorizeBricks(); layoutBricks(); fetchDonors(); bootMascot(); fetchProgress();
+    savePrefs(PREFS); syncControls(); colorizeBricks(); layoutBricks(); fetchDonors(); fetchProgress(); bootMascote();
+    if(PREFS.soundOn){ audioState.on=true; audioState.track=PREFS.trackSrc; ensureAudioPlays(); } else { audioState.on=false; stopAudio(); }
   };
 
+  optAutoDensity.addEventListener('change',()=>{ optBrickPx.disabled=optAutoDensity.checked; });
+
+  // -------------------- Compartilhar (com seleção de template) --------------------
+  const shareFab = document.getElementById('shareFab');
+  function buildShareText(tplId){
+    const LINK = location.href;
+    const META = formatBRL(shareState.goal);
+    const PCT  = shareState.pctText;
+    if(tplId==='2'){
+      return `💛 Cada Tijolo Conta! A Associação de Pais do Colégio Luzeiros convida você a somar na campanha Famílias que Constroem.
+Estamos em ${PCT} da meta (${META}). Participe: ${LINK}`;
+    }else if(tplId==='3'){
+      return `🚧 Famílias que Constroem — Associação de Pais do Colégio Luzeiros.
+${PCT} da meta (${META}). Junte-se: ${LINK} 🧱`;
+    }
+    // default #1
+    return `🧱 Famílias que Constroem – Associação de Pais do Colégio Luzeiros.
+Já chegamos a ${PCT} da meta de ${META}.
+Veja o Tijolômetro e participe: ${LINK} 💛`;
+  }
+  function openShareSheet(){
+    // marcar último template selecionado
+    const last = localStorage.getItem(SHARE_PREF_KEY) || '1';
+    (document.getElementById('tpl'+last) || document.getElementById('tpl1')).checked = true;
+    // atualizar prévia
+    updateSharePreview();
+    shareModal.classList.add('show');
+    shareModal.setAttribute('aria-hidden','false');
+  }
+  function closeShareSheet(){
+    shareModal.classList.remove('show');
+    shareModal.setAttribute('aria-hidden','true');
+  }
+  function updateSharePreview(){
+    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '1';
+    sharePreview.textContent = buildShareText(sel);
+  }
+
+  shareFab.addEventListener('click', openShareSheet);
+  shareClose.addEventListener('click', closeShareSheet);
+  document.getElementById('tpl1').addEventListener('change', updateSharePreview);
+  document.getElementById('tpl2').addEventListener('change', updateSharePreview);
+  document.getElementById('tpl3').addEventListener('change', updateSharePreview);
+
+  shareSetDefault.addEventListener('click', ()=>{
+    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '1';
+    localStorage.setItem(SHARE_PREF_KEY, sel);
+    shareSetDefault.textContent = 'Padrão salvo ✓';
+    setTimeout(()=> shareSetDefault.textContent='Usar como padrão', 1400);
+  });
+
+  shareGo.addEventListener('click', async ()=>{
+    const sel = (document.querySelector('input[name="tpl"]:checked')||{}).value || '1';
+    const text = buildShareText(sel);
+    try{
+      if(navigator.share){
+        await navigator.share({title:'Cada Tijolo Conta', text, url: location.href});
+      }else{
+        const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(wa, '_blank');
+      }
+    }catch{} finally{
+      closeShareSheet();
+    }
+  });
+
   // -------------------- Boot --------------------
+  function syncControls(){ /* já definida acima */ }
   syncControls();
   window.addEventListener('resize', debounce(layoutBricks, 120));
   window.addEventListener('orientationchange', ()=> setTimeout(layoutBricks,150));
 
-  loadLogo(PREFS.logo).then(ok=>{ if(ok){ ensureAspectFromLogo(); layoutBricks(); } });
+  loadLogo(DEFAULTS.logo).then(ok=>{ if(ok){ ensureAspectFromLogo(); layoutBricks(); } });
   fetchDonors();
   fetchProgress();
-  bootMascot();
-  setInterval(fetchProgress, PREFS.pollMs);
+  bootMascote();
+  detectTracks();
 
+  setInterval(fetchProgress, DEFAULTS.pollMs);
 })();
 </script>
 </body>
