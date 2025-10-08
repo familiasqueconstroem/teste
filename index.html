@@ -44,6 +44,18 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .mascot img{display:block;width:110px;height:auto}
 .carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
 
+/* --- Animações do mascote --- */
+@keyframes bob {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  50%     { transform: translateY(-4px) rotate(-0.4deg); }
+}
+@keyframes wave {
+  0%,100% { transform: rotate(0deg) }
+  50%     { transform: rotate(-12deg) }
+}
+.mascot.idle { animation: bob 3.5s ease-in-out infinite; }
+.mascot .carry-brick { transform-origin: 90% 120%; animation: wave 1.8s ease-in-out infinite; }
+
 /* Tooltip simples */
 #tip{
   position:fixed; z-index:9990; display:none;
@@ -143,6 +155,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
           <option>Lumininha_trena.png</option>
         </select>
       </div>
+      <div class="row" style="margin-top:8px">
+        <label>X (%):</label><input id="optMascotX" type="number" min="0" max="100" step="0.5" style="width:84px">
+        <label>Y (%):</label><input id="optMascotY" type="number" min="0" max="100" step="0.5" style="width:84px">
+      </div>
 
       <h4>Doadores</h4>
       <div class="row">
@@ -206,7 +222,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     logo:'logo.png', cols:120, rows:72, brickPx:0, targetBricks:0, gap:1,
     pollMs:30000, pad:0, grout:'', joint:'', ghost:'', palette:'brand3',
     embed:false, hudOff:false,
-    mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false
+    mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false,
+    mascotX:'4%',  /* âncora X do mascote dentro da gauge */
+    mascotY:'6%'   /* âncora Y do mascote dentro da gauge */
   };
   function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
   const SAVED=loadSaved();
@@ -244,12 +262,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
   // controls
   const fab=document.getElementById('fab'), drawer=document.getElementById('drawer'),
-        closeDrawer=document.getElementById('closeDrawer'),
+        closeDrawer=document.getElementById('closeDrawer'],
         optPalette=document.getElementById('optPalette'),
         optBrickPx=document.getElementById('optBrickPx'),
         optAutoDensity=document.getElementById('optAutoDensity'),
         optMascotOn=document.getElementById('optMascotOn'),
         optMascotSrc=document.getElementById('optMascotSrc'),
+        optMascotX=document.getElementById('optMascotX'),
+        optMascotY=document.getElementById('optMascotY'),
         optDonorsOn=document.getElementById('optDonorsOn'),
         optNamesMode=document.getElementById('optNamesMode'),
         optHudOn=document.getElementById('optHudOn'),
@@ -328,14 +348,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       bricksFgEl.innerHTML='';bricksBgEl.innerHTML='';bricksFg=[];bricksBg=[];
       const fragFg=document.createDocumentFragment(),fragBg=document.createDocumentFragment();
       for(let i=0;i<total;i++){ const f=document.createElement('div');f.className='brick';f.dataset.idx=i;f.appendChild(document.createElement('div')).className='fill';fragFg.appendChild(f);bricksFg.push(f);
-        const b=document.createElement('div');b.className='brick';b.appendChild(document.createElement('div')).className='fill';fragBg.appendChild(b);bricksBg.push(b); }
+        const b=document.createElement('div');b.className='brick';b.appendChild(document.createElement('div')).className='fill';fragBg.appendChild(b); }
       bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
     }
     let idx=0; for(let r=0;r<rows;r++){ const startX=startXBase+(r%2?offset:0);
       for(let c=0;c<cols;c++){ const x=startX+c*(brickW+gap),y=gap+r*(brickH+gap);
         const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
         const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } }
-    buildOrder(rows,cols); colorizeBricks(); applyProgress(lastProgress); if(CONFIG.mascot) placeMascot();
+    buildOrder(rows,cols); colorizeBricks(); applyProgress(lastProgress); if(CONFIG.mascot) setMascotByAnchor();
   }
 
   function applyProgress(p){
@@ -356,25 +376,42 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       requestAnimationFrame(()=> document.body.classList.remove('no-anim'));
     }
 
-    if (CONFIG.mascot && filled > lastFilled){ stackBrickTo(of[filled-1]||of[0]); lastFilled=filled; }
+    if (CONFIG.mascot && filled > lastFilled){
+      throwBrickTo(of[filled-1]||of[0]); // arremessa o tijolo recém-colocado
+      lastFilled=filled;
+    }
   }
 
-  function moveMascotTo(brick){ if(!brick) return; const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect();
-    const x=bR.left-gR.left + bR.width/2 - 55; const y=bR.top-gR.top - 60; mascotBox.style.transform=`translate(${Math.round(x)}px,${Math.round(y)}px)` }
-  function stackBrickTo(brick){
-    if(!brick || !firstApplyDone) return; // não anima durante 1º paint
-    const fx=document.createElement('div');fx.className='fx-brick';gauge.appendChild(fx);
-    const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect(), mR=mascotBox.getBoundingClientRect();
-    const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78, tx=bR.left-gR.left + bR.width/2 -13, ty=bR.top-gR.top + bR.height/2 -7;
-    fx.style.left=sx+'px'; fx.style.top=sy+'px'; fx.style.transition='transform .45s cubic-bezier(.2,.8,.2,1), opacity .45s';
-    requestAnimationFrame(()=>{ fx.style.transform=`translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.05)` });
-    setTimeout(()=>{ fx.style.opacity='0'; setTimeout(()=>fx.remove(),220)},460); moveMascotTo(brick);
+  // Posição do mascote por âncora (percentual ou px)
+  function setMascotByAnchor(){
+    if(!CONFIG.mascot){ mascotBox.style.display='none'; return; }
+    if(CONFIG.respectMotion && matchMedia('(prefers-reduced-motion: reduce)').matches){ mascotBox.style.display='none'; return; }
+    mascotImg.src=CONFIG.mascotSrc;
+    mascotBox.style.display='block';
+    mascotBox.classList.add('idle'); // anima “aceno”
+    const gR=gauge.getBoundingClientRect();
+    const xp = String(CONFIG.mascotX).toLowerCase().includes('%')
+      ? (parseFloat(CONFIG.mascotX)/100)*gR.width
+      : parseFloat(CONFIG.mascotX||0);
+    const yp = String(CONFIG.mascotY).toLowerCase().includes('%')
+      ? (parseFloat(CONFIG.mascotY)/100)*gR.height
+      : parseFloat(CONFIG.mascotY||0);
+    const x = Math.round(xp - 55);   // compensação da largura do PNG (~110px/2)
+    const y = Math.round(yp - 60);   // altura aproximada acima do muro
+    mascotBox.style.transform = `translate(${x}px, ${y}px)`;
   }
-  function placeMascot(){
-    if(!CONFIG.mascot) {mascotBox.style.display='none';return}
-    if(CONFIG.respectMotion && matchMedia('(prefers-reduced-motion: reduce)').matches){ mascotBox.style.display='none'; return }
-    mascotImg.src=CONFIG.mascotSrc; mascotBox.style.display='block';
-    const idx=Math.min(_orderFg.length-1,Math.floor(lastProgress*_orderFg.length)); moveMascotTo(_orderFg[idx]);
+
+  // Arremesso sempre partindo do mascote “fixo”
+  function throwBrickTo(brick){
+    if(!brick || !firstApplyDone) return;
+    const fx=document.createElement('div'); fx.className='fx-brick'; gauge.appendChild(fx);
+    const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect(), mR=mascotBox.getBoundingClientRect();
+    const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78; // “mão” do mascote
+    const tx=bR.left-gR.left + bR.width/2 -13, ty=bR.top-gR.top + bR.height/2 -7;
+    fx.style.left=sx+'px'; fx.style.top=sy+'px';
+    fx.style.transition='transform .48s cubic-bezier(.2,.8,.2,1), opacity .48s';
+    requestAnimationFrame(()=>{ fx.style.transform=`translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.05)`; });
+    setTimeout(()=>{ fx.style.opacity='0'; setTimeout(()=>fx.remove(),220)},480);
   }
 
   // ——— DOADORES: atribui aos tijolos atuais sempre que layout muda ———
@@ -400,7 +437,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-240); const top=Math.max(8,r.top-12);
     tip.style.left=left+'px'; tip.style.top=top+'px';
     clearTimeout(tipTimer); tipTimer=setTimeout(()=> tip.style.display='none', 3000);
-    if(CONFIG.mascot){ moveMascotTo(brick); stackBrickTo(brick); }
+    if(CONFIG.mascot){ setMascotByAnchor(); throwBrickTo(brick); }
   }
 
   // Parser de datas (mantido)
@@ -524,6 +561,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     optBrickPx.disabled = optAutoDensity.checked;
     optMascotOn.checked = CONFIG.mascot;
     optMascotSrc.value = CONFIG.mascotSrc;
+    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 4;
+    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 6;
     optDonorsOn.checked = CONFIG.donorsOn;
     optNamesMode.value = CONFIG.namesMode;
     optHudOn.checked = !CONFIG.hudOff;
@@ -534,12 +573,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     CONFIG.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
     CONFIG.mascot = optMascotOn.checked;
     CONFIG.mascotSrc = optMascotSrc.value;
+    CONFIG.mascotX = (optMascotX.value||'4') + '%';
+    CONFIG.mascotY = (optMascotY.value||'6') + '%';
     CONFIG.donorsOn = optDonorsOn.checked;
     CONFIG.namesMode = optNamesMode.value;
     CONFIG.hudOff = !optHudOn.checked;
 
     if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
-    placeMascot();
+    setMascotByAnchor();
     colorizeBricks(); layoutBricks();
     fetchDonors(); // recarrega doadores ao trocar chave
     saveSettings();
@@ -549,6 +590,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   optAutoDensity.onchange = ()=>{ optBrickPx.disabled = optAutoDensity.checked; applySettings(); };
   optMascotOn.onchange = applySettings;
   optMascotSrc.onchange = applySettings;
+  optMascotX.oninput = ()=>{ applySettings(); };
+  optMascotY.oninput = ()=>{ applySettings(); };
   optDonorsOn.onchange = ()=>{ applySettings(); };
   optNamesMode.onchange = applySettings;
   optHudOn.onchange = applySettings;
@@ -584,10 +627,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   syncControls();
   if(CONFIG.hudOff) hud.box.classList.add('hidden');
 
-  const ro=new ResizeObserver(()=>layoutBricks()); ro.observe(gauge);
+  const ro=new ResizeObserver(()=>{ layoutBricks(); if(CONFIG.mascot) setMascotByAnchor(); }); ro.observe(gauge);
   window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
 
-  loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks();});
+  loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks(); setMascotByAnchor();});
   fetchDonors();            // lê doadores (Forms) por cabeçalho (robusto)
   fetchProgress();          // valores do painel (sua lógica original)
   setInterval(fetchProgress, CONFIG.pollMs);
