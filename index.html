@@ -28,8 +28,8 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .brick .fill{position:absolute;inset:0;width:0%;height:100%;background:var(--brick-bg-color);transition:width .35s ease}
 .brick.filled .fill{width:100%}
 
-/* desliga transição só no 1º paint (evita “tijolos voando”) */
-.no-anim .brick .fill{transition:none !important}
+/* sem animação no primeiro paint (evita “linha voadora”) */
+.no-anim .brick .fill{ transition:none !important; }
 
 .hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fdfdfd;font-variant-numeric:tabular-nums;align-items:center}
 .hud .item{display:flex;flex-direction:column;gap:2px}
@@ -39,15 +39,18 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .alert{position:absolute;left:14px;top:14px;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:8px 10px;border-radius:10px;font-size:12px;display:none}
 .alert b{display:block;margin-bottom:4px}
 
-/* tooltip de doadores */
-#tip{position:fixed;z-index:9997;background:#fff;border:1px solid #ddd;padding:8px 10px;border-radius:10px;
-  box-shadow:0 8px 20px rgba(0,0,0,.15);font-size:13px;max-width:60vw;display:none}
-#tip .mini{font-size:11px;color:#666;margin-top:6px}
-
-/* Mascote */
+/* Mascote PNG (opcional) */
 .mascot{position:absolute;left:0;top:0;z-index:20;pointer-events:none;display:none;transition:transform .35s cubic-bezier(.2,.8,.2,1)}
 .mascot img{display:block;width:110px;height:auto}
 .carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
+
+/* Tooltip simples */
+#tip{
+  position:fixed; z-index:9990; display:none;
+  background:#fff; color:#111; border:1px solid #ddd; padding:8px 10px; border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.18); max-width:240px; font:14px/1.3 system-ui;
+}
+#tip .mini{ font-size:12px; color:#666; margin-top:4px }
 
 body.embed{background:transparent}.hud.hidden{display:none}
 
@@ -178,10 +181,11 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   /* ---------- parâmetros e defaults ---------- */
   const qs=new URLSearchParams(location.search);
   const DEFAULTS={
+    // Planilha do PAINEL (esta já estava “certinha” na sua versão)
     sheetId:'1-_J2DwVSn7LULB55YVPCHQsQ-PRfZYt8oDJhepdXYFY',
     sheetName:'Tijolometro', range:'A1:D10',
 
-    /* Doadores vindos do FORMS (aba TIJOLO_Respostas, coluna I a partir de I2) */
+    // Doadores a partir do Forms
     donorsOn:false,
     donorsSheetId:'1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I',
     donorsSheet:'TIJOLO_Respostas',
@@ -205,7 +209,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }))}
   function toKey(k){return ({
     'sheet_id':'sheetId','sheet':'sheetName','range':'range',
-    'donors':'donorsOn','donors_sheet_id':'donorsSheetId','donors_sheet':'donorsSheet','donors_range':'donorsRange','names':'namesMode',
+    'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','names':'namesMode',
     'logo':'logo','cols':'cols','rows':'rows','brick_px':'brickPx','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
     'embed':'embed','hud':'hudOn','target_bricks':'targetBricks','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion'
   }[k]||k)}
@@ -216,10 +220,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   if (CONFIG.joint) document.documentElement.style.setProperty('--joint', CONFIG.joint+'px');
   if (CONFIG.ghost) document.documentElement.style.setProperty('--ghost', CONFIG.ghost);
   if (CONFIG.embed) document.body.classList.add('embed');
-
-  // desliga transições no 1º paint
-  document.body.classList.add('no-anim');
-  let initializing = true; // evita animação do mascote na 1ª aplicação
 
   /* ---------- elementos ---------- */
   const gauge=document.getElementById('gauge'), maskEl=document.getElementById('mask'),
@@ -251,11 +251,13 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const paintCanvas=document.createElement('canvas');
   const pctx=paintCanvas.getContext('2d',{willReadFrequently:true});
   let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,lastFilled=0,donors=[];
+  let firstApplyDone=false; // <- para tirar animações no primeiro paint
+
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
   function tweenNumber(el,to,fmt,ms=600){ const from=Number((el.textContent||'0').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;
-    const t0=performance.now(); (function f(t){const k=Math.min(1,(t-t0)/ms);el.textContent=fmt(from+(to-from)*k); if(k<1)requestAnimationFrame(f)})(t0) }
+    const t0=performance.now(); (function f(t){const k=Math.min(1,(t-t0)/ms);el.textContent=fmt(from+(to-from)*k); if(k<1)requestAnimationFrame(f)})(t0); }
   function firstName(n){ if(!n) return ''; const p=n.trim().split(/\s+/); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
   function formatName(n){ if(CONFIG.namesMode==='off')return 'Doação recebida'; if(CONFIG.namesMode==='full')return n||'Doação recebida'; return firstName(n||''); }
 
@@ -265,7 +267,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     im.src=src+(src.includes('?')?'&':'?')+'t='+Date.now();
   })}
 
-  function ensureAspectFromLogo(){ if(aspectSet||!logoImg) return; const ar=logoImg.naturalWidth/logoImg.naturalHeight; if(ar>0) gauge.style.aspectRatio=`${ar} / 1`; aspectSet=true }
+  function ensureAspectFromLogo(){ if(aspectSet||!logoImg) return; const ar=logoImg.naturalWidth/logoImg.naturalHeight; if(ar>0) gauge.style.aspectRatio=`${ar} / 1`; aspectSet=true; }
 
   const PALETTES={brand2:['#0A4AA6','#F2C035'],brand3:['#0A4AA6','#F2C035','#8B1E1E']};
   const hexToRgb=h=>{const n=parseInt(h.replace('#',''),16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}};
@@ -316,36 +318,34 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
         const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
         const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } }
     buildOrder(rows,cols); colorizeBricks(); applyProgress(lastProgress); if(CONFIG.mascot) placeMascot();
-
-    /* vincula doadores aos tijolos quando redesenha grade */
-    if (CONFIG.donorsOn && donors.length){
-      for (let i=0;i<_orderFg.length;i++){ _orderFg[i]._donor = donors[i % donors.length]; }
-    }
   }
 
   function applyProgress(p){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
+
+    // Desliga animações no primeiro paint
+    if(!firstApplyDone){ document.body.classList.add('no-anim'); }
+
     const of=_orderFg,ob=_orderBg,total=of.length; if(!total) return;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
     for(let i=0;i<total;i++){ const fF=of[i].querySelector('.fill'), fB=ob[i].querySelector('.fill'); of[i].classList.remove('filled','partial'); fF.style.width='0%'; ob[i].classList.remove('filled','partial'); fB.style.width='0%';
       if(i<filled){ of[i].classList.add('filled'); fF.style.width='100%'; ob[i].classList.add('filled'); fB.style.width='100%'; } }
     if(filled<total){ const fF=of[filled].querySelector('.fill'), fB=ob[filled].querySelector('.fill'); const percent=Math.round(frac*100)+'%'; of[filled].classList.add('partial'); fF.style.width=percent; ob[filled].classList.add('partial'); fB.style.width=percent; }
 
-    // remove travas do 1º paint e evita “tijolo voando” inicial do mascote
-    if (initializing){
-      lastFilled = filled;
-      initializing = false;
+    // Reativa animações só depois do primeiro apply
+    if(!firstApplyDone){
+      firstApplyDone=true;
       requestAnimationFrame(()=> document.body.classList.remove('no-anim'));
-    } else if (CONFIG.mascot && filled > lastFilled){
-      stackBrickTo(of[filled-1]||of[0]);
-      lastFilled = filled;
     }
+
+    if (CONFIG.mascot && filled > lastFilled){ stackBrickTo(of[filled-1]||of[0]); lastFilled=filled; }
   }
 
   function moveMascotTo(brick){ if(!brick) return; const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect();
     const x=bR.left-gR.left + bR.width/2 - 55; const y=bR.top-gR.top - 60; mascotBox.style.transform=`translate(${Math.round(x)}px,${Math.round(y)}px)` }
   function stackBrickTo(brick){
-    if(!brick) return; const fx=document.createElement('div');fx.className='fx-brick';gauge.appendChild(fx);
+    if(!brick || !firstApplyDone) return; // não anima durante 1º paint
+    const fx=document.createElement('div');fx.className='fx-brick';gauge.appendChild(fx);
     const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect(), mR=mascotBox.getBoundingClientRect();
     const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78, tx=bR.left-gR.left + bR.width/2 -13, ty=bR.top-gR.top + bR.height/2 -7;
     fx.style.left=sx+'px'; fx.style.top=sy+'px'; fx.style.transition='transform .45s cubic-bezier(.2,.8,.2,1), opacity .45s';
@@ -359,7 +359,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const idx=Math.min(_orderFg.length-1,Math.floor(lastProgress*_orderFg.length)); moveMascotTo(_orderFg[idx]);
   }
 
-  // Tooltips de doadores
+  // Tooltips de doadores (Forms)
   let tipTimer=null;
   bricksFgEl.addEventListener('click', onBrickTap, {passive:true});
   bricksFgEl.addEventListener('touchstart', onBrickTap, {passive:true});
@@ -367,22 +367,19 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const brick=e.target.closest('.brick'); if(!brick||!bricksFgEl.contains(brick)) return;
     const donor=brick._donor;
     const r=brick.getBoundingClientRect();
-
     const donorTitle = (donor && donor.name)
-      ? `<b>${formatName(donor.name)}</b>`
-      : `<b>Famílias que Constroem</b>`;
+      ? `<b>${formatName(donor.name)}</b>` : `<b>Famílias que Constroem</b>`;
     const html = CONFIG.donorsOn && donor
       ? `${donorTitle}${donor.msg?`<div>${donor.msg}</div>`:''}<div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Obrigado!'}</div>`
       : `<b>Obrigado!</b><div class="mini">Cada tijolo conta 💛</div>`;
-
     tip.innerHTML=html; tip.style.display='block';
-    const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-140); const top=Math.max(8,r.top-12);
+    const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-240); const top=Math.max(8,r.top-12);
     tip.style.left=left+'px'; tip.style.top=top+'px';
     clearTimeout(tipTimer); tipTimer=setTimeout(()=> tip.style.display='none', 3000);
     if(CONFIG.mascot){ moveMascotTo(brick); stackBrickTo(brick); }
   }
 
-  // Parser de datas da planilha
+  // Parser de datas da planilha (mantido)
   function parseDateCell(cell){
     let v=(cell&&typeof cell==='object'&&'v'in cell)?cell.v:cell;
     if(v&&typeof v==='object'){ if('f'in v&&typeof v.f==='string')return parseDateCell(v.f); if('v'in v) return parseDateCell(v.v); }
@@ -397,7 +394,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     return null;
   }
 
-  /* ----- SUA fetchProgress ORIGINAL (mantida) ----- */
+  // === ATENÇÃO ===
+  // fetchProgress() é a MESMA lógica que você já usava. Não alterei a forma de buscar valores.
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
     const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
@@ -434,10 +432,104 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }
   }
 
-  /* ----- Doadores (Forms: TIJOLO_Respostas!I2:I) ----- */
+  // Busca doadores (Forms: planilha/aba/coluna I)
   async function fetchDonors(){
-    if(!CONFIG.donorsOn){ donors=[]; return }
+    if(!CONFIG.donorsOn) {donors=[]; return;}
     try{
       const base=`https://docs.google.com/spreadsheets/d/${(CONFIG.donorsSheetId||CONFIG.sheetId)}/gviz/tq`;
       const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.donorsSheet,range:CONFIG.donorsRange,t:Date.now()+''});
-      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await
+      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
+      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); const data=JSON.parse(m[1]);
+      donors=(data.table.rows||[])
+        .map(r=> ((r.c?.[0]?.v||'').toString().trim()))
+        .filter(s=>s.length>0)
+        .map(s=>({ name:'', msg:s, value:0 }));
+      // vincula ciclicamente aos tijolos (só para tooltip)
+      const of=_orderFg;
+      for(let i=0;i<of.length;i++){ of[i]._donor = donors.length? donors[i % donors.length] : null; }
+    }catch(e){ console.warn('Doadores: falha ao ler',e); donors=[]; }
+  }
+
+  /* ---------- Controles (UI) ---------- */
+  function syncControls(){
+    optPalette.value = CONFIG.palette;
+    optAutoDensity.checked = CONFIG.brickPx===0;
+    optBrickPx.value = CONFIG.brickPx || 14;
+    optBrickPx.disabled = optAutoDensity.checked;
+    optMascotOn.checked = CONFIG.mascot;
+    optMascotSrc.value = CONFIG.mascotSrc;
+    optDonorsOn.checked = CONFIG.donorsOn;
+    optNamesMode.value = CONFIG.namesMode;
+    optHudOn.checked = !CONFIG.hudOff;
+  }
+  function saveSettings(){ const copy={...CONFIG}; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
+  function applySettings(){
+    // visual
+    CONFIG.palette = optPalette.value;
+    CONFIG.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
+    CONFIG.mascot = optMascotOn.checked;
+    CONFIG.mascotSrc = optMascotSrc.value;
+    CONFIG.donorsOn = optDonorsOn.checked;
+    CONFIG.namesMode = optNamesMode.value;
+    CONFIG.hudOff = !optHudOn.checked;
+    // aplicar HUD/mascote
+    if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
+    placeMascot();
+    // redesenho + doadores
+    colorizeBricks(); layoutBricks();
+    fetchDonors();
+    saveSettings();
+  }
+  optPalette.onchange = applySettings;
+  optBrickPx.oninput = ()=>{ if(!optAutoDensity.checked) applySettings(); };
+  optAutoDensity.onchange = ()=>{ optBrickPx.disabled = optAutoDensity.checked; applySettings(); };
+  optMascotOn.onchange = applySettings;
+  optMascotSrc.onchange = applySettings;
+  optDonorsOn.onchange = ()=>{ applySettings(); };
+  optNamesMode.onchange = applySettings;
+  optHudOn.onchange = applySettings;
+
+  btnRefresh.onclick = ()=> fetchProgress();
+  btnSimulate.onclick = ()=> applyProgress(Math.min(1,lastProgress+0.02));
+  btnCopyLink.onclick = ()=>{
+    const u=new URL(location.href);
+    const params=new URLSearchParams();
+    if(CONFIG.palette!==DEFAULTS.palette) params.set('palette',CONFIG.palette);
+    if(CONFIG.brickPx!==0) params.set('brick_px',CONFIG.brickPx);
+    if(!CONFIG.mascot) params.set('mascot','0'); else if(CONFIG.mascotSrc!==DEFAULTS.mascotSrc) params.set('mascot_src',CONFIG.mascotSrc);
+    if(CONFIG.donorsOn) params.set('donors','1');
+    if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
+    if(CONFIG.hudOff) params.set('hud','0');
+    // incluir origem dos doadores se não for o default
+    if(CONFIG.donorsSheetId!==DEFAULTS.donorsSheetId) params.set('donors_sheet_id', CONFIG.donorsSheetId);
+    if(CONFIG.donorsSheet!==DEFAULTS.donorsSheet)   params.set('donors_sheet', CONFIG.donorsSheet);
+    if(CONFIG.donorsRange!==DEFAULTS.donorsRange)   params.set('donors_range', CONFIG.donorsRange);
+    u.search = params.toString();
+    navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
+  };
+  btnReset.onclick = ()=>{
+    Object.assign(CONFIG, DEFAULTS);
+    syncControls(); applySettings();
+  };
+
+  fab.onclick = ()=> drawer.classList.add('open');
+  closeDrawer.onclick = ()=> drawer.classList.remove('open');
+
+  /* ---------- inicialização ---------- */
+  // garante sem animação no 1º paint
+  document.body.classList.add('no-anim');
+
+  syncControls();
+  if(CONFIG.hudOff) hud.box.classList.add('hidden');
+
+  const ro=new ResizeObserver(()=>layoutBricks()); ro.observe(gauge);
+  window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
+
+  loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks();});
+  fetchDonors();            // lê doadores do Forms (se ligado)
+  fetchProgress();          // mantém sua lógica original para valores
+  setInterval(fetchProgress, CONFIG.pollMs);
+})();
+</script>
+</body>
+</html>
