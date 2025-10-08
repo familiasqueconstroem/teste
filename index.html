@@ -31,6 +31,13 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 /* sem animação no primeiro paint (evita “linha voadora”) */
 .no-anim .brick .fill{ transition:none !important; }
 
+/* reforço sutil do muro */
+.bricks-bg .brick{
+  box-shadow:
+    inset 0 0 0 var(--joint) var(--grid),
+    0 0 0 1px rgba(0,0,0,.03);
+}
+
 .hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fdfdfd;font-variant-numeric:tabular-nums;align-items:center}
 .hud .item{display:flex;flex-direction:column;gap:2px}
 .hud .label{font-size:12px;color:#666}.hud .value{font-size:20px;font-weight:800}.hud .pct{font-weight:900}
@@ -172,13 +179,13 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
           <option value="off">Ocultar</option>
         </select>
       </div>
-      <div class="row" style="margin-top:6px">
+      <div class="row debug-row" style="margin-top:6px">
         <span class="small">Aba:</span><span class="small mono" id="dbgSheet">TIJOLO_Respostas</span>
       </div>
-      <div class="row" style="margin-top:2px">
+      <div class="row debug-row" style="margin-top:2px">
         <span class="small">Cabeçalho:</span><span class="small mono" id="dbgHeader">Texto do tijolo 1 (máx. 40)</span>
       </div>
-      <div class="row" style="margin-top:2px">
+      <div class="row debug-row" style="margin-top:2px">
         <span class="small">Status doadores:</span><span class="small" id="dbgDonors">—</span>
       </div>
 
@@ -212,7 +219,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     sheetName:'Tijolometro', range:'A1:D10',
 
     // Doadores (Forms) — por CABEÇALHO
-    donorsOn:true, /* ligado por padrão p/ facilitar teste */
+    donorsOn:true,
     donorsSheetId:'1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I',
     donorsSheet:'TIJOLO_Respostas',
     donorsHeader:'Texto do tijolo 1 (máx. 40)',
@@ -223,9 +230,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     pollMs:30000, pad:0, grout:'', joint:'', ghost:'', palette:'brand3',
     embed:false, hudOff:false,
     mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false,
-    mascotX:'4%',  /* âncora X do mascote dentro da gauge */
-    mascotY:'6%'   /* âncora Y do mascote dentro da gauge */
+    mascotX:'96%',  /* canto direito padrão */
+    mascotY:'8%'    /* um pouco abaixo do topo */
   };
+
   function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
   const SAVED=loadSaved();
 
@@ -347,8 +355,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if(bricksFg.length!==total){
       bricksFgEl.innerHTML='';bricksBgEl.innerHTML='';bricksFg=[];bricksBg=[];
       const fragFg=document.createDocumentFragment(),fragBg=document.createDocumentFragment();
-      for(let i=0;i<total;i++){ const f=document.createElement('div');f.className='brick';f.dataset.idx=i;f.appendChild(document.createElement('div')).className='fill';fragFg.appendChild(f);bricksFg.push(f);
-        const b=document.createElement('div');b.className='brick';b.appendChild(document.createElement('div')).className='fill';fragBg.appendChild(b); }
+      for(let i=0;i<total;i++){
+        const f=document.createElement('div'); f.className='brick'; f.dataset.idx=i;
+        const ffill=document.createElement('div'); ffill.className='fill'; f.appendChild(ffill);
+        fragFg.appendChild(f); bricksFg.push(f);
+        const b=document.createElement('div'); b.className='brick';
+        const bfill=document.createElement('div'); bfill.className='fill'; b.appendChild(bfill);
+        fragBg.appendChild(b); bricksBg.push(b);
+      }
       bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
     }
     let idx=0; for(let r=0;r<rows;r++){ const startX=startXBase+(r%2?offset:0);
@@ -390,10 +404,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     mascotBox.style.display='block';
     mascotBox.classList.add('idle'); // anima “aceno”
     const gR=gauge.getBoundingClientRect();
-    const xp = String(CONFIG.mascotX).toLowerCase().includes('%')
+    const xp = String(CONFIG.mascotX ?? '').toLowerCase().includes('%')
       ? (parseFloat(CONFIG.mascotX)/100)*gR.width
       : parseFloat(CONFIG.mascotX||0);
-    const yp = String(CONFIG.mascotY).toLowerCase().includes('%')
+    const yp = String(CONFIG.mascotY ?? '').toLowerCase().includes('%')
       ? (parseFloat(CONFIG.mascotY)/100)*gR.height
       : parseFloat(CONFIG.mascotY||0);
     const x = Math.round(xp - 55);   // compensação da largura do PNG (~110px/2)
@@ -483,12 +497,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       hud.updated.textContent='Atualizado em '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
       try{localStorage.setItem('tj:last',JSON.stringify({p,raised,goal,ts:Date.now()}));}catch{}
+      return {ok:true, raised, goal, p};
     }catch(e){
       console.error('Erro ao buscar planilha:',e);
       const last=localStorage.getItem('tj:last'); if(last){ const {p,raised,goal,ts}=JSON.parse(last);
         applyProgress(p); hud.raised.textContent=formatBRL(raised); hud.goal.textContent=formatBRL(goal);
         hud.pct.textContent=(p*100).toFixed(1).replace('.',',')+'%'; hud.updated.textContent='Offline — último: '+new Date(ts).toLocaleString('pt-BR');
       }else if(hud.updated.textContent==='—'){ hud.updated.textContent='(Erro na planilha)' }
+      return {ok:false};
     }
   }
 
@@ -546,10 +562,12 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       }
 
       assignDonorsToBricks();
+      return {ok:true, count: donors.length};
     }catch(e){
       console.warn('Doadores: falha ao ler',e);
       donors=[]; assignDonorsToBricks();
       dbgDonors.textContent='erro/permissão';
+      return {ok:false};
     }
   }
 
@@ -561,8 +579,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     optBrickPx.disabled = optAutoDensity.checked;
     optMascotOn.checked = CONFIG.mascot;
     optMascotSrc.value = CONFIG.mascotSrc;
-    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 4;
-    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 6;
+    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 96;
+    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 8;
     optDonorsOn.checked = CONFIG.donorsOn;
     optNamesMode.value = CONFIG.namesMode;
     optHudOn.checked = !CONFIG.hudOff;
@@ -573,8 +591,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     CONFIG.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
     CONFIG.mascot = optMascotOn.checked;
     CONFIG.mascotSrc = optMascotSrc.value;
-    CONFIG.mascotX = (optMascotX.value||'4') + '%';
-    CONFIG.mascotY = (optMascotY.value||'6') + '%';
+    // aceita número (interpreta como %) ou string com %
+    CONFIG.mascotX = (optMascotX.value==='' ? '96' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
+    CONFIG.mascotY = (optMascotY.value==='' ? '8'  : optMascotY.value) + (String(optMascotY.value).includes('%')?'':'%');
     CONFIG.donorsOn = optDonorsOn.checked;
     CONFIG.namesMode = optNamesMode.value;
     CONFIG.hudOff = !optHudOn.checked;
@@ -596,8 +615,28 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   optNamesMode.onchange = applySettings;
   optHudOn.onchange = applySettings;
 
-  btnRefresh.onclick = ()=> { fetchProgress(); fetchDonors(); };
-  btnSimulate.onclick = ()=> applyProgress(Math.min(1,lastProgress+0.02));
+  let pollId = null;
+  function startPolling() {
+    if (pollId) clearInterval(pollId);
+    pollId = setInterval(fetchProgress, CONFIG.pollMs);
+  }
+
+  btnRefresh.onclick = ()=> {
+    fetchProgress().then(()=>{
+      btnRefresh.textContent = 'Atualizado ✔';
+      setTimeout(()=> btnRefresh.textContent='Atualizar agora', 1200);
+    });
+    fetchDonors();
+  };
+
+  btnSimulate.onclick = ()=> {
+    if (pollId) { clearInterval(pollId); pollId = null; }
+    const p = Math.min(1, lastProgress + 0.02);
+    applyProgress(p);
+    hud.pct.textContent = (p*100).toFixed(1).replace('.',',') + '%';
+    setTimeout(()=> startPolling(), 6000);
+  };
+
   btnCopyLink.onclick = ()=>{
     const u=new URL(location.href);
     const params=new URLSearchParams();
@@ -610,6 +649,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if(CONFIG.donorsSheetId!==DEFAULTS.donorsSheetId) params.set('donors_sheet_id', CONFIG.donorsSheetId);
     if(CONFIG.donorsSheet!==DEFAULTS.donorsSheet)   params.set('donors_sheet', CONFIG.donorsSheet);
     if(CONFIG.donorsHeader!==DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
+    // include mascot anchor
+    if (CONFIG.mascotX !== DEFAULTS.mascotX) params.set('mascot_x', CONFIG.mascotX);
+    if (CONFIG.mascotY !== DEFAULTS.mascotY) params.set('mascot_y', CONFIG.mascotY);
     u.search = params.toString();
     navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
   };
@@ -620,6 +662,11 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
   fab.onclick = ()=> drawer.classList.add('open');
   closeDrawer.onclick = ()=> drawer.classList.remove('open');
+
+  // Oculta as linhas de debug por padrão; exibe somente com ?debug=1
+  if (qs.get('debug') !== '1') {
+    document.querySelectorAll('.debug-row').forEach(el => el.style.display='none');
+  }
 
   /* ---------- inicialização ---------- */
   document.body.classList.add('no-anim'); // sem animação no 1º paint
@@ -632,8 +679,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
   loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks(); setMascotByAnchor();});
   fetchDonors();            // lê doadores (Forms) por cabeçalho (robusto)
-  fetchProgress();          // valores do painel (sua lógica original)
-  setInterval(fetchProgress, CONFIG.pollMs);
+  fetchProgress().then(()=> startPolling());          // valores do painel (sua lógica original) e inicia polling
 })();
 </script>
 </body>
