@@ -317,8 +317,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     for(const h of set){const c2=hexToRgb(h);const d=dist2(c1,c2);if(d<bestD){bestD=d;best=h}}return best}
   const makeSampler=(data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))), i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]};
   const median=a=>{const b=a.slice().sort((m,n)=>m-n);return b[Math.floor(b.length/2)]};
+  // dá um “up” de contraste escurecendo levemente um hex (#rrggbb)
+  function darkenHex(hex, amt=0.15){
+    const c = hexToRgb(hex);
+    const k = Math.max(0, Math.min(1, 1-amt));
+    return `rgb(${Math.round(c.r*k)},${Math.round(c.g*k)},${Math.round(c.b*k)})`;
+  }
 
-  // Colorize com blend quando tijolo é grande + fundo coerente fora do logo
+  // Colorize com muro de fundo forte e logo destacado
   function colorizeBricks(){
     if(!logoImg) return; const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
     paintCanvas.width=W;paintCanvas.height=H;pctx.clearRect(0,0,W,H);
@@ -332,25 +338,16 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
       const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
       if (A < 100) {
-        // fora do logo: usa tom base um pouco mais forte e sem “neblina”
+        // FORA do logo (muro de fundo): tijolo forte e visível (camada de fundo)
+        fg.style.background = 'transparent';
         const base = hexToRgb(baseHex);
-        fg.style.background = `rgba(${base.r},${base.g},${base.b},0.38)`;
-        bg.style.opacity = '0';
+        bg.style.background = `rgb(${base.r},${base.g},${base.b})`;
+        bg.style.opacity = '1';
       } else {
+        // DENTRO do logo: usar a cor da paleta (mapeada do logo) com um leve “boost” de contraste
         const r=median(rs),g=median(gs),b=median(bs);
         const pc = mapToPalette(r,g,b,CONFIG.palette);
-        let finalColor = pc;
-        try{
-          const wnorm = Math.max(w,h);
-          // blend mais suave (cap 0.4) para não “lavar” a cor com tijolo grande
-          const t = Math.min(0.4, Math.max(0, (wnorm - 24) / 40)); // inicia blend quando >24px
-          if(t>0){
-            const c1 = hexToRgb(pc), c2 = hexToRgb(baseHex);
-            const br = Math.round(c1.r*(1-t)+c2.r*t), bgc = Math.round(c1.g*(1-t)+c2.g*t), bb = Math.round(c1.b*(1-t)+c2.b*t);
-            finalColor = `rgb(${br},${bgc},${bb})`;
-          }
-        }catch(e){ finalColor = pc; }
-        fg.style.background = finalColor;
+        fg.style.background = darkenHex(pc, 0.15); // 15% mais “vivo”
         bg.style.opacity='0';
       }
     }
@@ -399,10 +396,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       for(let c=0;c<cols;c++){ const x=startX+c*(brickW+gap),y=gap+r*(brickH+gap);
         const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
         const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } }
-    buildOrder(rows,cols); colorizeBricks(); applyProgress(lastProgress); if(CONFIG.mascot) setMascotByAnchor();
+    buildOrder(rows,cols); colorizeBricks(); applyProgress(lastProgress, /*skipThrow*/ true); if(CONFIG.mascot) setMascotByAnchor();
   }
 
-  function applyProgress(p){
+  function applyProgress(p, skipThrow){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
 
     // Desliga animações no primeiro paint
@@ -420,7 +417,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       requestAnimationFrame(()=> document.body.classList.remove('no-anim'));
     }
 
-    if (CONFIG.mascot && filled > lastFilled){
+    if (!skipThrow && CONFIG.mascot && filled > lastFilled){
       throwBrickTo(of[filled-1]||of[0]); // arremessa o tijolo recém-colocado
       lastFilled=filled;
     }
@@ -447,18 +444,26 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     mascotBox.style.top  = y + 'px';
   }
 
-  // Arremesso mais lento e visível
+  // Arremesso mais lento + throttle (sem travar)
+  let __throwLock = false;
   function throwBrickTo(brick){
-    if(!brick || !firstApplyDone) return;
+    if(!brick || !firstApplyDone || __throwLock) return;
+    __throwLock = true; // impede arremessos sobrepostos
     const fx=document.createElement('div'); fx.className='fx-brick'; gauge.appendChild(fx);
     const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect(), mR=mascotBox.getBoundingClientRect();
     const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78; // “mão” do mascote
     const tx=bR.left-gR.left + bR.width/2 -13, ty=bR.top-gR.top + bR.height/2 -7;
     fx.style.left=sx+'px'; fx.style.top=sy+'px';
-    fx.style.transition='transform .9s cubic-bezier(.2,.6,.2,1), opacity .9s';
+    fx.style.transition='transform 1.3s cubic-bezier(.2,.7,.2,1), opacity 1.3s';
     fx.style.transform = 'translate(0,0) scale(0.9)';
-    requestAnimationFrame(()=>{ fx.style.transform=`translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.02)`; fx.style.opacity='1'; });
-    setTimeout(()=>{ fx.style.opacity='0'; setTimeout(()=>fx.remove(),260); },920);
+    requestAnimationFrame(()=>{
+      fx.style.transform=`translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.02)`;
+      fx.style.opacity='1';
+    });
+    setTimeout(()=>{
+      fx.style.opacity='0';
+      setTimeout(()=>{ fx.remove(); __throwLock = false; }, 320);
+    }, 1300);
   }
 
   // ——— DOADORES: atribui aos tijolos atuais sempre que layout muda ———
@@ -482,7 +487,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
     let displayName = '';
     if (showPersonal && donor.name) {
-      displayName = (CONFIG.namesMode === 'full') ? (donor.name || '') : formatName(donor.name || '');
+      displayName = (CONFIG.namesMode === 'full') ? (donor.name || '') : firstName(donor.name || '');
     }
     const donorTitle = showPersonal && displayName
       ? `<b>${displayName}</b>`
