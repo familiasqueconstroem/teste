@@ -222,8 +222,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     pollMs:30000, pad:0, grout:'', joint:'', ghost:'', palette:'brand3',
     embed:false, hudOff:false,
     mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false,
-    mascotX:'96%',  /* canto direito padrão */
-    mascotY:'8%'    /* um pouco abaixo do topo */
+    mascotX:'90%',  /* padrão solicitado */
+    mascotY:'75%'   /* padrão solicitado */
   };
 
   function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
@@ -236,7 +236,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       if(['donors','embed','hud','mascot','respect_motion'].includes(k)) return [toKey(k), v==='1'];
       if(['mascot_x','mascot_y'].includes(k)) return [toKey(k), v];
       return [toKey(k), v];
-    }))}
+    }))
+  };
   function toKey(k){return ({
     'sheet_id':'sheetId','sheet':'sheetName','range':'range',
     'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','donors_header':'donorsHeader','names':'namesMode',
@@ -292,6 +293,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,lastFilled=0,donors=[];
   let firstApplyDone=false; // para tirar animações no primeiro paint
   let lastGoalValue=0, lastRaisedValue=0; // para simulação visual
+  let lastAutoBrickW = 14; // guarda o tamanho do tijolo quando em Auto (px)
 
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
@@ -316,7 +318,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const makeSampler=(data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))), i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]};
   const median=a=>{const b=a.slice().sort((m,n)=>m-n);return b[Math.floor(b.length/2)]};
 
-  // Colorize com blend quando tijolo é grande + fundo suave fora do logo
+  // Colorize com blend quando tijolo é grande + fundo coerente fora do logo
   function colorizeBricks(){
     if(!logoImg) return; const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
     paintCanvas.width=W;paintCanvas.height=H;pctx.clearRect(0,0,W,H);
@@ -330,17 +332,18 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
       const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
       if (A < 100) {
-        // fora do logo: tom suave da cor base (sem “cinza”)
+        // fora do logo: usa tom base um pouco mais forte e sem “neblina”
         const base = hexToRgb(baseHex);
-        fg.style.background = `rgba(${base.r},${base.g},${base.b},0.18)`;
-        bg.style.opacity = '0.25';
+        fg.style.background = `rgba(${base.r},${base.g},${base.b},0.38)`;
+        bg.style.opacity = '0';
       } else {
         const r=median(rs),g=median(gs),b=median(bs);
         const pc = mapToPalette(r,g,b,CONFIG.palette);
         let finalColor = pc;
         try{
           const wnorm = Math.max(w,h);
-          const t = Math.min(0.6, Math.max(0, (wnorm - 24) / 40)); // inicia blend quando >24px
+          // blend mais suave (cap 0.4) para não “lavar” a cor com tijolo grande
+          const t = Math.min(0.4, Math.max(0, (wnorm - 24) / 40)); // inicia blend quando >24px
           if(t>0){
             const c1 = hexToRgb(pc), c2 = hexToRgb(baseHex);
             const br = Math.round(c1.r*(1-t)+c2.r*t), bgc = Math.round(c1.g*(1-t)+c2.g*t), bb = Math.round(c1.b*(1-t)+c2.b*t);
@@ -358,14 +361,26 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
   function layoutBricks(){
     ensureAspectFromLogo(); const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
-    if(CONFIG.brickPx>0){ const bw=CONFIG.brickPx,bh=Math.round(bw*0.6); effCols=Math.max(20,Math.floor((W-CONFIG.gap)/(bw+CONFIG.gap))); effRows=Math.max(12,Math.floor((H-CONFIG.gap)/(bh+CONFIG.gap))); }
-    else if(CONFIG.targetBricks>0){const ar=W/H;const rows=Math.max(12,Math.round(Math.sqrt(CONFIG.targetBricks/(ar*1.0))));const cols=Math.max(20,Math.round(rows*ar));effCols=cols;effRows=rows}
+    if(CONFIG.brickPx>0){
+      const bw=CONFIG.brickPx,bh=Math.round(bw*0.6);
+      effCols=Math.max(20,Math.floor((W-CONFIG.gap)/(bw+CONFIG.gap)));
+      effRows=Math.max(12,Math.floor((H-CONFIG.gap)/(bh+CONFIG.gap)));
+    } else if(CONFIG.targetBricks>0){
+      const ar=W/H;
+      const rows=Math.max(12,Math.round(Math.sqrt(CONFIG.targetBricks/(ar*1.0))));
+      const cols=Math.max(20,Math.round(rows*ar));
+      effCols=cols;effRows=rows;
+    }
     const cols=(typeof effCols==='number'&&effCols>0)?effCols:CONFIG.cols;
     const rows=(typeof effRows==='number'&&effRows>0)?effRows:CONFIG.rows;
     const gap=CONFIG.gap; let brickW=Math.floor((W-(cols+1)*gap)/cols); if(brickW<2)brickW=2;
     let offset=Math.floor(brickW/2); let gridWEven=cols*brickW+(cols+1)*gap; let gridWOdd=gridWEven+offset;
     if(gridWOdd>W){const extra=gridWOdd-W;const reduce=Math.ceil(extra/cols);brickW=Math.max(2,brickW-reduce);offset=Math.floor(brickW/2);gridWEven=cols*brickW+(cols+1)*gap;gridWOdd=gridWEven+offset}
     const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows)); const gridWMax=Math.max(gridWEven,gridWOdd); const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
+    if (CONFIG.brickPx === 0) {
+      // memoriza o “tamanho Auto” para o manual começar idêntico ao sair do Auto
+      lastAutoBrickW = brickW;
+    }
     const total=rows*cols;
     if(bricksFg.length!==total){
       bricksFgEl.innerHTML='';bricksBgEl.innerHTML='';bricksFg=[];bricksBg=[];
@@ -632,8 +647,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     optBrickPx.disabled = optAutoDensity.checked;
     optMascotOn.checked = CONFIG.mascot;
     optMascotSrc.value = CONFIG.mascotSrc;
-    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 96;
-    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 8;
+    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 90;
+    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 75;
     optDonorsOn.checked = CONFIG.donorsOn;
     optNamesMode.value = CONFIG.namesMode;
     optHudOn.checked = !CONFIG.hudOff;
@@ -644,8 +659,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     CONFIG.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
     CONFIG.mascot = optMascotOn.checked;
     CONFIG.mascotSrc = optMascotSrc.value;
-    CONFIG.mascotX = (optMascotX.value==='' ? '96' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
-    CONFIG.mascotY = (optMascotY.value==='' ? '8'  : optMascotY.value) + (String(optMascotY.value).includes('%')?'':'%');
+    CONFIG.mascotX = (optMascotX.value==='' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
+    CONFIG.mascotY = (optMascotY.value==='' ? '75'  : optMascotY.value) + (String(optMascotY.value).includes('%')?'':'%');
     CONFIG.donorsOn = optDonorsOn.checked;
     CONFIG.namesMode = optNamesMode.value;
     CONFIG.hudOff = !optHudOn.checked;
@@ -664,7 +679,20 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   }
   optPalette.onchange = applySettings;
   optBrickPx.oninput = ()=>{ if(!optAutoDensity.checked) applySettings(); };
-  optAutoDensity.onchange = ()=>{ optBrickPx.disabled = optAutoDensity.checked; applySettings(); };
+  optAutoDensity.onchange = ()=>{
+    optBrickPx.disabled = optAutoDensity.checked;
+    if (optAutoDensity.checked) {
+      // entrar em Auto
+      CONFIG.brickPx = 0;
+      applySettings();
+    } else {
+      // sair do Auto: usar EXATAMENTE o tamanho que o Auto calculou
+      const px = Math.max(8, Math.min(40, Math.round(lastAutoBrickW||14)));
+      optBrickPx.value = px;
+      CONFIG.brickPx = px;
+      applySettings();
+    }
+  };
   optMascotOn.onchange = applySettings;
   optMascotSrc.onchange = applySettings;
   optMascotX.oninput = ()=>{ applySettings(); };
