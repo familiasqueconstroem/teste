@@ -24,7 +24,7 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
   -webkit-mask-image:var(--mask);mask-image:var(--mask);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain; z-index:8}
 .bricks{position:relative;width:100%;height:100%}
-.brick{position:absolute;background:var(--grout);border-radius:2px;overflow:hidden;box-shadow: inset 0 0 0 var(--joint) var(--grid)}
+.brick{position:absolute;background:var(--grout);border-radius:2px;overflow:hidden;box-shadow: inset 0 0 0 var(--joint) var(--grid); transform-origin: top left;}
 .brick .fill{position:absolute;inset:0;width:0%;height:100%;background:var(--brick-bg-color);transition:width .35s ease}
 .brick.filled .fill{width:100%}
 /* sem animação no primeiro paint */
@@ -135,9 +135,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
         </select>
       </div>
       <div class="row" style="margin-top:8px">
-        <label style="min-width:110px">Tamanho do tijolo:</label>
-        <input id="optBrickPx" class="slider" type="range" min="8" max="40" step="1">
-        <label><input id="optAutoDensity" type="checkbox"> Auto</label>
+        <label style="min-width:110px">Tamanho visual:</label>
+        <input id="optBrickScale" class="slider" type="range" min="0.60" max="1.00" step="0.02">
+        <span class="small">Resolução sempre no máximo</span>
       </div>
 
       <h4>Mascote</h4>
@@ -222,8 +222,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     pollMs:30000, pad:0, grout:'', joint:'', ghost:'', palette:'brand3',
     embed:false, hudOff:false,
     mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false,
-    mascotX:'90%',  /* padrão solicitado */
-    mascotY:'75%'   /* padrão solicitado */
+    mascotX:'90%', mascotY:'75%',
+    brickScale:1.0  // escala visual (resolução SEMPRE Auto)
   };
 
   function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
@@ -233,6 +233,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const CONFIG={...DEFAULTS,...SAVED,
     ...Object.fromEntries([...qs.entries()].map(([k,v])=>{
       if(['brick_px','cols','rows','gap','poll_ms','pad','target_bricks'].includes(k)) return [toKey(k), +v];
+      if(['brick_scale'].includes(k)) return [toKey(k), +v];
       if(['donors','embed','hud','mascot','respect_motion'].includes(k)) return [toKey(k), v==='1'];
       if(['mascot_x','mascot_y'].includes(k)) return [toKey(k), v];
       return [toKey(k), v];
@@ -243,7 +244,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','donors_header':'donorsHeader','names':'namesMode',
     'logo':'logo','cols':'cols','rows':'rows','brick_px':'brickPx','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
     'embed':'embed','hud':'hudOn','target_bricks':'targetBricks','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion',
-    'mascot_x':'mascotX','mascot_y':'mascotY'
+    'mascot_x':'mascotX','mascot_y':'mascotY','brick_scale':'brickScale'
   }[k]||k)}
 
   // aplicar variáveis de estilo opcionais
@@ -267,8 +268,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const fab=document.getElementById('fab'), drawer=document.getElementById('drawer'),
         closeDrawer=document.getElementById('closeDrawer'),
         optPalette=document.getElementById('optPalette'),
-        optBrickPx=document.getElementById('optBrickPx'),
-        optAutoDensity=document.getElementById('optAutoDensity'),
+        optBrickScale=document.getElementById('optBrickScale'),
         optMascotOn=document.getElementById('optMascotOn'),
         optMascotSrc=document.getElementById('optMascotSrc'),
         optMascotX=document.getElementById('optMascotX'),
@@ -293,7 +293,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,lastFilled=0,donors=[];
   let firstApplyDone=false; // para tirar animações no primeiro paint
   let lastGoalValue=0, lastRaisedValue=0; // para simulação visual
-  let lastAutoBrickW = 14; // guarda o tamanho do tijolo quando em Auto (px)
+  let lastAutoBrickW = 14; // (mantido p/ compat) não usado quando escala visual
 
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
@@ -358,11 +358,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
   function layoutBricks(){
     ensureAspectFromLogo(); const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
-    if(CONFIG.brickPx>0){
-      const bw=CONFIG.brickPx,bh=Math.round(bw*0.6);
-      effCols=Math.max(20,Math.floor((W-CONFIG.gap)/(bw+CONFIG.gap)));
-      effRows=Math.max(12,Math.floor((H-CONFIG.gap)/(bh+CONFIG.gap)));
-    } else if(CONFIG.targetBricks>0){
+
+    // SEMPRE Auto (alta resolução): a “brincadeira” é só escala visual
+    if(CONFIG.targetBricks>0){
       const ar=W/H;
       const rows=Math.max(12,Math.round(Math.sqrt(CONFIG.targetBricks/(ar*1.0))));
       const cols=Math.max(20,Math.round(rows*ar));
@@ -370,14 +368,16 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }
     const cols=(typeof effCols==='number'&&effCols>0)?effCols:CONFIG.cols;
     const rows=(typeof effRows==='number'&&effRows>0)?effRows:CONFIG.rows;
+
     const gap=CONFIG.gap; let brickW=Math.floor((W-(cols+1)*gap)/cols); if(brickW<2)brickW=2;
     let offset=Math.floor(brickW/2); let gridWEven=cols*brickW+(cols+1)*gap; let gridWOdd=gridWEven+offset;
     if(gridWOdd>W){const extra=gridWOdd-W;const reduce=Math.ceil(extra/cols);brickW=Math.max(2,brickW-reduce);offset=Math.floor(brickW/2);gridWEven=cols*brickW+(cols+1)*gap;gridWOdd=gridWEven+offset}
-    const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows)); const gridWMax=Math.max(gridWEven,gridWOdd); const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
-    if (CONFIG.brickPx === 0) {
-      // memoriza o “tamanho Auto” para o manual começar idêntico ao sair do Auto
-      lastAutoBrickW = brickW;
-    }
+    const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows));
+    const gridWMax=Math.max(gridWEven,gridWOdd);
+    const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
+
+    if (CONFIG.brickPx === 0) { lastAutoBrickW = brickW; } // compat
+
     const total=rows*cols;
     if(bricksFg.length!==total){
       bricksFgEl.innerHTML='';bricksBgEl.innerHTML='';bricksFg=[];bricksBg=[];
@@ -392,11 +392,23 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       }
       bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
     }
-    let idx=0; for(let r=0;r<rows;r++){ const startX=startXBase+(r%2?offset:0);
-      for(let c=0;c<cols;c++){ const x=startX+c*(brickW+gap),y=gap+r*(brickH+gap);
-        const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
-        const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; idx++; } }
-    buildOrder(rows,cols); colorizeBricks(); applyProgress(lastProgress, /*skipThrow*/ true); if(CONFIG.mascot) setMascotByAnchor();
+
+    const scale = Math.max(0.6, Math.min(1.0, CONFIG.brickScale||1.0));
+    let idx=0;
+    for(let r=0;r<rows;r++){
+      const startX=startXBase+(r%2?offset:0);
+      for(let c=0;c<cols;c++){
+        const x=startX+c*(brickW+gap),y=gap+r*(brickH+gap);
+        const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
+        const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+        idx++;
+      }
+    }
+
+    buildOrder(rows,cols);
+    colorizeBricks();
+    applyProgress(lastProgress, /*skipThrow*/ true);
+    if(CONFIG.mascot) setMascotByAnchor();
   }
 
   function applyProgress(p, skipThrow){
@@ -407,9 +419,18 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
     const of=_orderFg,ob=_orderBg,total=of.length; if(!total) return;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
-    for(let i=0;i<total;i++){ const fF=of[i].querySelector('.fill'), fB=ob[i].querySelector('.fill'); of[i].classList.remove('filled','partial'); fF.style.width='0%'; ob[i].classList.remove('filled','partial'); fB.style.width='0%';
-      if(i<filled){ of[i].classList.add('filled'); fF.style.width='100%'; ob[i].classList.add('filled'); fB.style.width='100%'; } }
-    if(filled<total){ const fF=of[filled].querySelector('.fill'), fB=ob[filled].querySelector('.fill'); const percent=Math.round(frac*100)+'%'; of[filled].classList.add('partial'); fF.style.width=percent; ob[filled].classList.add('partial'); fB.style.width=percent; }
+    for(let i=0;i<total;i++){
+      const fF=of[i].querySelector('.fill'), fB=ob[i].querySelector('.fill');
+      of[i].classList.remove('filled','partial'); fF.style.width='0%';
+      ob[i].classList.remove('filled','partial'); fB.style.width='0%';
+      if(i<filled){ of[i].classList.add('filled'); fF.style.width='100%'; ob[i].classList.add('filled'); fB.style.width='100%'; }
+    }
+    if(filled<total){
+      const fF=of[filled].querySelector('.fill'), fB=ob[filled].querySelector('.fill');
+      const percent=Math.round(frac*100)+'%';
+      of[filled].classList.add('partial'); fF.style.width=percent;
+      ob[filled].classList.add('partial'); fB.style.width=percent;
+    }
 
     // Reativa animações só depois do primeiro apply
     if(!firstApplyDone){
@@ -647,9 +668,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   /* ---------- Controles (UI) ---------- */
   function syncControls(){
     optPalette.value = CONFIG.palette;
-    optAutoDensity.checked = CONFIG.brickPx===0;
-    optBrickPx.value = CONFIG.brickPx || 14;
-    optBrickPx.disabled = optAutoDensity.checked;
+    optBrickScale.value = CONFIG.brickScale || 1.0;
     optMascotOn.checked = CONFIG.mascot;
     optMascotSrc.value = CONFIG.mascotSrc;
     optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 90;
@@ -661,7 +680,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   function saveSettings(){ const copy={...CONFIG}; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
   function applySettings(){
     CONFIG.palette = optPalette.value;
-    CONFIG.brickPx = optAutoDensity.checked ? 0 : Number(optBrickPx.value);
+    // resolução SEMPRE no Auto; só escala visual:
+    CONFIG.brickPx = 0;
+    CONFIG.brickScale = Math.max(0.6, Math.min(1.0, Number(optBrickScale.value||1.0)));
     CONFIG.mascot = optMascotOn.checked;
     CONFIG.mascotSrc = optMascotSrc.value;
     CONFIG.mascotX = (optMascotX.value==='' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
@@ -670,9 +691,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     CONFIG.namesMode = optNamesMode.value;
     CONFIG.hudOff = !optHudOn.checked;
 
-    // Força recálculo completo do grid sempre que mudar manual/auto ou valor
-    effCols = undefined;
-    effRows = undefined;
+    // Força recálculo completo do grid (mantendo densidade alta)
+    effCols = undefined; effRows = undefined;
 
     if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
 
@@ -683,21 +703,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     saveSettings();
   }
   optPalette.onchange = applySettings;
-  optBrickPx.oninput = ()=>{ if(!optAutoDensity.checked) applySettings(); };
-  optAutoDensity.onchange = ()=>{
-    optBrickPx.disabled = optAutoDensity.checked;
-    if (optAutoDensity.checked) {
-      // entrar em Auto
-      CONFIG.brickPx = 0;
-      applySettings();
-    } else {
-      // sair do Auto: usar EXATAMENTE o tamanho que o Auto calculou
-      const px = Math.max(8, Math.min(40, Math.round(lastAutoBrickW||14)));
-      optBrickPx.value = px;
-      CONFIG.brickPx = px;
-      applySettings();
-    }
-  };
+  optBrickScale.oninput = ()=>{ applySettings(); };
   optMascotOn.onchange = applySettings;
   optMascotSrc.onchange = applySettings;
   optMascotX.oninput = ()=>{ applySettings(); };
@@ -738,8 +744,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const u=new URL(location.href);
     const params=new URLSearchParams();
     if(CONFIG.palette!==DEFAULTS.palette) params.set('palette',CONFIG.palette);
-    if(CONFIG.brickPx!==0) params.set('brick_px',CONFIG.brickPx);
-    if(!CONFIG.mascot) params.set('mascot','0'); else if(CONFIG.mascotSrc!==DEFAULTS.mascotSrc) params.set('mascot_src',CONFIG.mascotSrc);
     if(CONFIG.donorsOn) params.set('donors','1');
     if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
     if(CONFIG.hudOff) params.set('hud','0');
@@ -748,6 +752,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if(CONFIG.donorsHeader!==DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
     if (CONFIG.mascotX !== DEFAULTS.mascotX) params.set('mascot_x', CONFIG.mascotX);
     if (CONFIG.mascotY !== DEFAULTS.mascotY) params.set('mascot_y', CONFIG.mascotY);
+    if((CONFIG.brickScale||1) !== 1) params.set('brick_scale', (CONFIG.brickScale).toFixed(2));
     u.search = params.toString();
     navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
   };
