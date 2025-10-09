@@ -316,7 +316,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const makeSampler=(data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))), i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]};
   const median=a=>{const b=a.slice().sort((m,n)=>m-n);return b[Math.floor(b.length/2)]};
 
-  // Colorize com blend quando tijolo é grande
+  // Colorize com blend quando tijolo é grande + fundo suave fora do logo
   function colorizeBricks(){
     if(!logoImg) return; const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
     paintCanvas.width=W;paintCanvas.height=H;pctx.clearRect(0,0,W,H);
@@ -329,8 +329,12 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
       const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
-      if(A<100){fg.style.background='transparent';bg.style.opacity='1'}
-      else{
+      if (A < 100) {
+        // fora do logo: tom suave da cor base (sem “cinza”)
+        const base = hexToRgb(baseHex);
+        fg.style.background = `rgba(${base.r},${base.g},${base.b},0.18)`;
+        bg.style.opacity = '0.25';
+      } else {
         const r=median(rs),g=median(gs),b=median(bs);
         const pc = mapToPalette(r,g,b,CONFIG.palette);
         let finalColor = pc;
@@ -448,7 +452,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     for(let i=0;i<of.length;i++){ of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
   }
 
-  // Tooltips (clique/touch)
+  // Tooltips (clique/touch) — respeita namesMode (off/first/full)
   let tipTimer=null;
   bricksFgEl.addEventListener('click', onBrickTap, {passive:true});
   bricksFgEl.addEventListener('touchstart', onBrickTap, {passive:true});
@@ -456,17 +460,25 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const brick=e.target.closest('.brick'); if(!brick||!bricksFgEl.contains(brick)) return;
     const donor=brick._donor;
     const r=brick.getBoundingClientRect();
-    let donorTitle;
-    if (CONFIG.namesMode === 'off') {
-      donorTitle = `<b>Obrigado!</b>`;
-    } else {
-      donorTitle = (CONFIG.donorsOn && donor && (donor.name || donor.msg))
-        ? `<b>${donor.name ? (CONFIG.namesMode==='full' ? donor.name : formatName(donor.name)) : 'Famílias que Constroem'}</b>`
-        : `<b>Obrigado!</b>`;
+
+    // Regra: 'off' não mostra nome nem mensagem; 'first' mostra nome curto; 'full' nome completo.
+    const hasDonor = !!(CONFIG.donorsOn && donor);
+    const showPersonal = hasDonor && CONFIG.namesMode !== 'off';
+
+    let displayName = '';
+    if (showPersonal && donor.name) {
+      displayName = (CONFIG.namesMode === 'full') ? (donor.name || '') : formatName(donor.name || '');
     }
-    const html = (CONFIG.donorsOn && donor)
-      ? `${donorTitle}${donor.msg?`<div>${donor.msg}</div>`:''}<div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Cada tijolo conta 💛'}</div>`
-      : `<b>Obrigado!</b><div class="mini">Cada tijolo conta 💛</div>`;
+    const donorTitle = showPersonal && displayName
+      ? `<b>${displayName}</b>`
+      : `<b>Obrigado!</b>`;
+
+    const showMsg = showPersonal && donor && donor.msg; // em 'off' não mostra msg
+
+    const html = showMsg
+      ? `${donorTitle}<div>${donor.msg}</div><div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Cada tijolo conta 💛'}</div>`
+      : `${donorTitle}<div class="mini">Cada tijolo conta 💛</div>`;
+
     tip.innerHTML=html; tip.style.display='block';
     const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-320); const top=Math.max(8,r.top-12);
     tip.style.left=left+'px'; tip.style.top=top+'px';
@@ -566,9 +578,17 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       let colIdx = headerCanon.findIndex(h => h === wanted);
       if (colIdx === -1) colIdx = headerCanon.findIndex(h => h.includes(wanted) || wanted.includes(h));
 
-      const nameCandidates = ['nome','nome completo','nome do doador','nome do responsavel','name'];
-      let nameIdx = headerCanon.findIndex(hc => nameCandidates.some(cand => hc.includes(cand)));
-      if (nameIdx === -1) nameIdx = -1;
+      // procura coluna de nome com mais rigor (evita pegar e-mail/telefone)
+      const nameCandidates = ['nome','nome completo','name'];
+      let nameIdx = headerCanon.findIndex(hc =>
+        nameCandidates.some(cand => hc === cand || hc.startsWith(cand + ' '))
+      );
+      if (nameIdx === -1) {
+        nameIdx = headerCanon.findIndex(hc =>
+          /\b(nome|name)\b/.test(hc) && !/\b(email|e[- ]?mail|telefone|celular|whats|whatsapp)\b/.test(hc)
+        );
+      }
+      if (nameIdx < 0) nameIdx = -1;
 
       if (colIdx === -1){
         donors=[];
@@ -585,7 +605,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
             if (nameIdx >= 0 && r.c[nameIdx]){
               name = (r.c[nameIdx]?.v ?? r.c[nameIdx]?.f ?? '').toString().trim();
             }
-            out.push({ name: name||'', msg: v, value: 0 });
+            // garante que "nome completo" não herde lixo de outras colunas
+            name = (name || '').replace(/\s+/g,' ').trim();
+            out.push({ name, msg: v, value: 0 });
           }
         }
         donors = out;
