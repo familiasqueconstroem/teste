@@ -24,15 +24,13 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
   -webkit-mask-image:var(--mask);mask-image:var(--mask);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain; z-index:8}
 .bricks{position:relative;width:100%;height:100%}
-.brick{position:absolute;background:var(--grout);border-radius:2px;overflow:hidden;box-shadow: inset 0 0 0 var(--joint) var(--grid); transform-origin: top left;}
+.brick{position:absolute;background:var(--grout);border-radius:2px;overflow:hidden;box-shadow: inset 0 0 0 var(--joint) var(--grid)}
 .brick .fill{position:absolute;inset:0;width:0%;height:100%;background:var(--brick-bg-color);transition:width .35s ease}
 .brick.filled .fill{width:100%}
-/* sem animação no primeiro paint */
+/* sem animação no 1º paint */
 .no-anim .brick .fill{ transition:none !important; }
-/* reforço do muro de fundo */
-.bricks-bg .brick{
-  box-shadow: inset 0 0 0 var(--joint) var(--grid), 0 0 0 1px rgba(0,0,0,.03);
-}
+/* reforço do muro */
+.bricks-bg .brick{box-shadow: inset 0 0 0 var(--joint) var(--grid), 0 0 0 1px rgba(0,0,0,.03)}
 
 .hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fdfdfd;font-variant-numeric:tabular-nums;align-items:center}
 .hud .item{display:flex;flex-direction:column;gap:2px}
@@ -42,10 +40,10 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .alert{position:absolute;left:14px;top:14px;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:8px 10px;border-radius:10px;font-size:12px;display:none}
 .alert b{display:block;margin-bottom:4px}
 
-/* Mascote (posicionamento por left/top; animação no wrapper interno) */
+/* Mascote fixo com leve balanço */
 .mascot{position:absolute;left:0;top:0;z-index:40;pointer-events:none;display:none;transition:left .28s cubic-bezier(.2,.8,.2,1), top .28s cubic-bezier(.2,.8,.2,1)}
 .mascot img{display:block;width:110px;height:auto}
-.carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
+.carry-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
 .mascotWrap{display:inline-block}
 @keyframes bob { 0%,100% { transform: translateY(0) rotate(0deg);} 50%{ transform: translateY(-4px) rotate(-0.4deg);} }
 @keyframes wave{ 0%,100% { transform: rotate(0deg);} 50%{ transform: rotate(-12deg);} }
@@ -80,7 +78,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 .switch:checked{background:#0A4AA6}
 .switch::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:999px;background:#fff;transition:left .18s}
 .switch:checked::after{left:20px}
-.slider{width:100%}
 .btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer}
 .btn.primary{background:#0A4AA6;color:#fff;border-color:#0A4AA6}
 .small{font-size:12px;color:#666}
@@ -95,7 +92,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
       <img class="ghost-logo" id="ghostLogo" alt="logo" />
 
-      <!-- Mascote (wrapper interno para animação) -->
+      <!-- Mascote -->
       <div class="mascot" id="mascot" aria-hidden="true">
         <div class="mascotWrap" id="mascotWrap">
           <img id="mascotImg" src="Tio_Jolinho_tijolo.png" alt="Tio Jolinho">
@@ -189,14 +186,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
 <script>
 (function(){
-  /* ---------- parâmetros e defaults ---------- */
+  /* ---------- CONFIG ---------- */
   const qs=new URLSearchParams(location.search);
   const DEFAULTS={
     // Planilha do PAINEL
     sheetId:'1-_J2DwVSn7LULB55YVPCHQsQ-PRfZYt8oDJhepdXYFY',
     sheetName:'Tijolometro', range:'A1:D10',
 
-    // Doadores (Forms) — por CABEÇALHO
+    // Doadores (Forms)
     donorsOn:true,
     donorsSheetId:'1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I',
     donorsSheet:'TIJOLO_Respostas',
@@ -204,24 +201,18 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     donorsRange:'A1:Z10000',
     namesMode:'first',
 
-    // Visual travado
-    logo:'logo.png', cols:120, rows:72, brickPx:0, targetBricks:0, gap:1,
+    // Visual travado (alta densidade)
+    logo:'logo.png', cols:120, rows:72, gap:1,
     pollMs:30000, pad:0, grout:'', joint:'', ghost:'',
-    palette:'brand3', // travada
+    palette:'brand3',
     embed:false, hudOff:false,
 
     // Mascote
     mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false,
     mascotX:'90%', mascotY:'75%',
-
-    // animação de construção
-    buildSpeedMs:110 // intervalo entre tijolos
   };
-
   function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
   const SAVED=loadSaved();
-
-  // merge: URL > saved > defaults
   const CONFIG={...DEFAULTS,...SAVED,
     ...Object.fromEntries([...qs.entries()].map(([k,v])=>{
       if(['cols','rows','gap','poll_ms','pad'].includes(k)) return [toKey(k), +v];
@@ -234,18 +225,18 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     'sheet_id':'sheetId','sheet':'sheetName','range':'range',
     'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','donors_header':'donorsHeader','names':'namesMode',
     'logo':'logo','cols':'cols','rows':'rows','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
-    'embed':'embed','hud':'hudOn','target_bricks':'targetBricks','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion',
+    'embed':'embed','hud':'hudOn','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion',
     'mascot_x':'mascotX','mascot_y':'mascotY'
   }[k]||k)}
 
-  // aplicar variáveis de estilo opcionais
+  // CSS vars opcionais
   if (CONFIG.pad) document.documentElement.style.setProperty('--pad', CONFIG.pad+'px');
   if (CONFIG.grout) document.documentElement.style.setProperty('--grout', CONFIG.grout);
   if (CONFIG.joint) document.documentElement.style.setProperty('--joint', CONFIG.joint+'px');
   if (CONFIG.ghost) document.documentElement.style.setProperty('--ghost', CONFIG.ghost);
   if (CONFIG.embed) document.body.classList.add('embed');
 
-  /* ---------- elementos ---------- */
+  /* ---------- ELEMENTOS ---------- */
   const gauge=document.getElementById('gauge'), maskEl=document.getElementById('mask'),
         ghostEl=document.getElementById('ghostLogo'), bricksFgEl=document.getElementById('bricksFg'),
         bricksBgEl=document.getElementById('bricksBg'), alertBox=document.getElementById('logoAlert');
@@ -276,67 +267,43 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   dbgSheet.textContent = CONFIG.donorsSheet;
   dbgHeader.textContent = CONFIG.donorsHeader;
 
-  /* ---------- estado de desenho ---------- */
+  /* ---------- ESTADO ---------- */
   const paintCanvas=document.createElement('canvas');
   const pctx=paintCanvas.getContext('2d',{willReadFrequently:true});
   let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0;
-  let firstApplyDone=false; // para tirar animações no primeiro paint
-  let lastGoalValue=0, lastRaisedValue=0;
+  let donors=[]; // única
+  let firstApplyDone=false;
 
-  // construção animada
-  let buildTimer=null, builtOnce=false, animFilled=0; // índice de tijolos “de fato colocados”
-  let _orderFg=[],_orderBg=[];
-  let __throwLock = false;
-
-  // ——— DOADORES ——— (⚠️ DEFINIÇÃO ÚNICA!)
-  let donors=[];
-
+  /* ---------- UTILS ---------- */
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
-  function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
+  function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
   function tweenNumber(el,to,fmt,ms=600){ const from=Number((el.textContent||'0').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;
     const t0=performance.now(); (function f(t){const k=Math.min(1,(t-t0)/ms);el.textContent=fmt(from+(to-from)*k); if(k<1)requestAnimationFrame(f)})(t0); }
   function firstName(n){ if(!n) return ''; const p=n.trim().split(/\s+/); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
-  function formatName(n){ if(CONFIG.namesMode==='off') return ''; if(CONFIG.namesMode==='full') return n||''; return firstName(n||''); }
-
-  function loadLogo(src){ return new Promise(res=>{ const im=new Image();
-    im.onload=()=>{logoImg=im;ghostEl.src=im.src;setMaskImage(im.src);alertBox.style.display='none';res(true)};
-    im.onerror=()=>{alertBox.style.display='block';res(false)};
-    im.src=src+(src.includes('?')?'&':'?')+'t='+Date.now();
-  })}
-
   function ensureAspectFromLogo(){ if(aspectSet||!logoImg) return; const ar=logoImg.naturalWidth/logoImg.naturalHeight; if(ar>0) gauge.style.aspectRatio=`${ar} / 1`; aspectSet=true; }
 
-  const PALETTES={brand2:['#0A4AA6','#F2C035'],brand3:['#0A4AA6','#F2C035','#8B1E1E']};
+  // paleta (travada), amostragem + contraste
+  const PALETTES={brand3:['#0A4AA6','#F2C035','#8B1E1E']};
   const hexToRgb=h=>{const n=parseInt(h.replace('#',''),16);return{r:(n>>16)&255,g:(n>>8)&255,b=n&255}};
   const dist2=(c1,c2)=>{const dr=c1.r-c2.r,dg=c1.g-c2.g,db=c1.b-c2.b;return dr*dr+dg*dg+db*db};
-  function mapToPalette(r,g,b,name){const set=PALETTES[name];if(!set)return`rgb(${r},${g},${b})`;let best=set[0],bestD=Infinity,c1={r,g,b};
+  function mapToPalette(r,g,b){const set=PALETTES.brand3;let best=set[0],bestD=Infinity,c1={r,g,b};
     for(const h of set){const c2=hexToRgb(h);const d=dist2(c1,c2);if(d<bestD){bestD=d;best=h}}return best}
   const makeSampler=(data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))), i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]};
   const median=a=>{const b=a.slice().sort((m,n)=>m-n);return b[Math.floor(b.length/2)]};
+  const insideLogo=(as)=> Math.max.apply(null, as) >= 20;
+  const darkenHex=(hex, amt=0.12)=>{ const n=parseInt(hex.replace('#',''),16), r=(n>>16)&255,g=(n>>8)&255,b=n&255,k=Math.max(0,1-amt); return `rgb(${Math.round(r*k)},${Math.round(g*k)},${Math.round(b*k)})`; };
 
-  // reforço no preenchimento: usa alpha MÁXIMO dentre amostras (dilatação leve)
-  function isInsideLogo(sampleAs){
-    const Amax = Math.max.apply(null, sampleAs); // se QUALQUER ponto é opaco, consideramos “dentro”
-    return Amax >= 20; // limiar baixinho para evitar “cinzas” espalhados
-  }
-
-  // leve contraste a mais
-  function darkenHex(hex, amt=0.12){
-    const n=parseInt(hex.replace('#',''),16), r=(n>>16)&255,g=(n>>8)&255,b=n&255, k=Math.max(0,1-amt);
-    return `rgb(${Math.round(r*k)},${Math.round(g*k)},${Math.round(b*k)})`;
-  }
-
+  /* ---------- LAYOUT E CORES ---------- */
   function colorizeBricks(){
     if(!logoImg) return; const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
     paintCanvas.width=W;paintCanvas.height=H;pctx.clearRect(0,0,W,H);
     const ar=logoImg.naturalWidth/logoImg.naturalHeight;let dw=W,dh=W/ar;if(dh>H){dh=H;dw=H*ar}
     const dx=(W-dw)/2,dy=(H-dh)/2;pctx.drawImage(logoImg,dx,dy,dw,dh);
     const buf=pctx.getImageData(0,0,W,H).data;const samp=makeSampler(buf,W,H);
-    const baseHex = getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim() || '#a35a41';
+    const baseHex = '#a35a41'; const base = hexToRgb(baseHex);
 
     for(let i=0;i<bricksFg.length;i++){
       const bFg=bricksFg[i],bBg=bricksBg[i];const x=bFg._x,y=bFg._y,w=bFg._w,h=bFg._h;
-      // grade mais densa de amostras p/ letras/grades finas
       const pts=[
         [x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],
         [x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2],
@@ -345,22 +312,22 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
       const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
 
-      if (!isInsideLogo(as)){
-        // FORA do logo (muro de fundo): tijolo forte e visível
+      if (!insideLogo(as)){
+        // muro de fundo forte
         fg.style.background = 'transparent';
-        const base = hexToRgb(baseHex);
         bg.style.background = `rgb(${base.r},${base.g},${base.b})`;
         bg.style.opacity = '1';
       } else {
-        // DENTRO do logo: usa paleta a partir da cor local (mesmo se área for clara)
+        // dentro do logo — cores do logo, escurecidas
         const r=median(rs),g=median(gs),b=median(bs);
-        const pc = mapToPalette(r,g,b,CONFIG.palette);
+        const pc = mapToPalette(r,g,b);
         fg.style.background = darkenHex(pc, 0.12);
         bg.style.opacity='0';
       }
     }
   }
 
+  let _orderFg=[],_orderBg=[];
   function buildOrder(rows,cols){
     const of=[],ob=[];
     for(let r=rows-1;r>=0;r--){for(let c=0;c<cols;c++){const i=r*cols+c;of.push(bricksFg[i]);ob.push(bricksBg[i])}}
@@ -369,18 +336,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
   function layoutBricks(){
     ensureAspectFromLogo(); const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
-
-    // Auto fixo (alta resolução)
-    if(CONFIG.targetBricks>0){
-      const ar=W/H;
-      const rows=Math.max(12,Math.round(Math.sqrt(CONFIG.targetBricks/(ar*1.0))));
-      const cols=Math.max(20,Math.round(rows*ar));
-      effCols=cols;effRows=rows;
-    }
-    const cols=(typeof effCols==='number'&&effCols>0)?effCols:CONFIG.cols;
-    const rows=(typeof effRows==='number'&&effRows>0)?effRows:CONFIG.rows;
-
-    const gap=CONFIG.gap; let brickW=Math.floor((W-(cols+1)*gap)/cols); if(brickW<2)brickW=2;
+    const cols=CONFIG.cols, rows=CONFIG.rows, gap=CONFIG.gap;
+    let brickW=Math.floor((W-(cols+1)*gap)/cols); if(brickW<2)brickW=2;
     let offset=Math.floor(brickW/2); let gridWEven=cols*brickW+(cols+1)*gap; let gridWOdd=gridWEven+offset;
     if(gridWOdd>W){const extra=gridWOdd-W;const reduce=Math.ceil(extra/cols);brickW=Math.max(2,brickW-reduce);offset=Math.floor(brickW/2);gridWEven=cols*brickW+(cols+1)*gap;gridWOdd=gridWEven+offset}
     const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows));
@@ -415,117 +372,49 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
     buildOrder(rows,cols);
     colorizeBricks();
-    applyProgress(lastProgress, /*skipThrow*/ true);
-    if(CONFIG.mascot) setMascotByAnchor();
+    applyProgress(lastProgress);
+    setMascotByAnchor();
   }
 
-  function applyProgress(p, skipThrow){
+  /* ---------- PROGRESSO ---------- */
+  function applyProgress(p){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
-
     if(!firstApplyDone){ document.body.classList.add('no-anim'); }
 
     const of=_orderFg,ob=_orderBg,total=of.length; if(!total) return;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
 
-    // zera visual
     for(let i=0;i<total;i++){
       const fF=of[i].querySelector('.fill'), fB=ob[i].querySelector('.fill');
       of[i].classList.remove('filled','partial'); fF.style.width='0%';
       ob[i].classList.remove('filled','partial'); fB.style.width='0%';
+      if(i<filled){ of[i].classList.add('filled'); fF.style.width='100%'; ob[i].classList.add('filled'); fB.style.width='100%'; }
     }
-    // aplica até o animFilled (o que já foi “construído”)
-    for(let i=0;i<Math.min(animFilled, total);i++){
-      const fF=_orderFg[i].querySelector('.fill'), fB=_orderBg[i].querySelector('.fill');
-      _orderFg[i].classList.add('filled'); fF.style.width='100%';
-      _orderBg[i].classList.add('filled'); fB.style.width='100%';
-    }
-    // se alvo é maior que já construído, deixa o próximo parcial (só para feedback)
-    if(!skipThrow && animFilled < filled && filled < total){
-      const fF=_orderFg[animFilled].querySelector('.fill'), fB=_orderBg[animFilled].querySelector('.fill');
-      _orderFg[animFilled].classList.add('partial'); fF.style.width='30%';
-      _orderBg[animFilled].classList.add('partial'); fB.style.width='30%';
+    if(filled<total){
+      const fF=of[filled].querySelector('.fill'), fB=ob[filled].querySelector('.fill');
+      const percent=Math.round(frac*100)+'%'; of[filled].classList.add('partial'); fF.style.width=percent; ob[filled].classList.add('partial'); fB.style.width=percent;
     }
 
-    if(!firstApplyDone){
-      firstApplyDone=true;
-      requestAnimationFrame(()=> document.body.classList.remove('no-anim'));
-    }
+    if(!firstApplyDone){ firstApplyDone=true; requestAnimationFrame(()=> document.body.classList.remove('no-anim')); }
   }
 
-  // Constrói, tijolo por tijolo, até p (0..1)
-  function buildToProgress(pTarget){
-    const of=_orderFg,total=of.length; if(!total) return;
-    const target = Math.floor(pTarget*total);
-    if(buildTimer) clearInterval(buildTimer);
-
-    buildTimer = setInterval(()=>{
-      if(animFilled >= target){ clearInterval(buildTimer); buildTimer=null; return; }
-      const i = animFilled;
-      const brick = of[i];
-      // anima arremesso do mascote para o brick i
-      throwBrickTo(brick, ()=> {
-        // marca brick como preenchido
-        brick.classList.add('filled');
-        brick.querySelector('.fill').style.width='100%';
-        _orderBg[i].classList.add('filled');
-        _orderBg[i].querySelector('.fill').style.width='100%';
-        animFilled++;
-      });
-    }, CONFIG.buildSpeedMs);
-  }
-
-  // Posição do mascote
+  /* ---------- MASCOTE ---------- */
   function setMascotByAnchor(){
     if(!CONFIG.mascot){ mascotBox.style.display='none'; return; }
     if(CONFIG.respectMotion && matchMedia('(prefers-reduced-motion: reduce)').matches){ mascotBox.style.display='none'; return; }
-    mascotImg.src=CONFIG.mascotSrc;
-    mascotBox.style.display='block';
-    mascotWrap.classList.add('idle');
-
+    mascotImg.src=CONFIG.mascotSrc; mascotBox.style.display='block'; mascotWrap.classList.add('idle');
     const gR=gauge.getBoundingClientRect();
-    const xp = String(CONFIG.mascotX ?? '').toLowerCase().includes('%')
-      ? (parseFloat(CONFIG.mascotX)/100)*gR.width
-      : parseFloat(CONFIG.mascotX||0);
-    const yp = String(CONFIG.mascotY ?? '').toLowerCase().includes('%')
-      ? (parseFloat(CONFIG.mascotY)/100)*gR.height
-      : parseFloat(CONFIG.mascotY||0);
-    const x = Math.round(xp - 55);
-    const y = Math.round(yp - 60);
-    mascotBox.style.left = x + 'px';
-    mascotBox.style.top  = y + 'px';
+    const xp = String(CONFIG.mascotX ?? '').includes('%') ? (parseFloat(CONFIG.mascotX)/100)*gR.width : parseFloat(CONFIG.mascotX||0);
+    const yp = String(CONFIG.mascotY ?? '').includes('%') ? (parseFloat(CONFIG.mascotY)/100)*gR.height : parseFloat(CONFIG.mascotY||0);
+    mascotBox.style.left = (Math.round(xp - 55)) + 'px';
+    mascotBox.style.top  = (Math.round(yp - 60)) + 'px';
   }
 
-  // Arremesso (tijolo “unidade”) mais lento + callback quando chega
-  function throwBrickTo(brick, onArrive){
-    if(!brick || __throwLock) { if(onArrive) onArrive(); return; }
-    __throwLock = true;
-    const fx=document.createElement('div'); fx.className='fx-brick'; gauge.appendChild(fx);
-    const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect(), mR=mascotBox.getBoundingClientRect();
-    const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78;
-    const tx=bR.left-gR.left + bR.width/2 -13, ty=bR.top-gR.top + bR.height/2 -7;
-    fx.style.left=sx+'px'; fx.style.top=sy+'px';
-    fx.style.transition='transform 0.9s cubic-bezier(.2,.7,.2,1), opacity 0.9s';
-    fx.style.transform = 'translate(0,0) scale(0.9)';
-    requestAnimationFrame(()=>{
-      fx.style.transform=`translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.02)`;
-      fx.style.opacity='1';
-    });
-    setTimeout(()=>{
-      fx.style.opacity='0';
-      setTimeout(()=>{
-        fx.remove(); __throwLock = false;
-        if (onArrive) onArrive();
-      }, 220);
-    }, 900);
-  }
-
-  // ——— atribui doadores aos tijolos atuais sempre que layout muda ———
+  /* ---------- DOADORES ---------- */
   function assignDonorsToBricks(){
     const of=_orderFg;
     for(let i=0;i<of.length;i++){ of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
   }
-
-  // Tooltips (clique/touch) — respeita namesMode (off/first/full)
   let tipTimer=null;
   bricksFgEl.addEventListener('click', onBrickTap, {passive:true});
   bricksFgEl.addEventListener('touchstart', onBrickTap, {passive:true});
@@ -542,7 +431,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       displayName = (CONFIG.namesMode === 'full') ? (donor.name || '') : firstName(donor.name || '');
     }
     const donorTitle = showPersonal && displayName ? `<b>${displayName}</b>` : `<b>Obrigado!</b>`;
-    const showMsg = showPersonal && donor && donor.msg;
+    const showMsg = hasDonor && donor && donor.msg;
 
     const html = showMsg
       ? `${donorTitle}<div>${donor.msg}</div><div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Cada tijolo conta 💛'}</div>`
@@ -552,14 +441,214 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-320); const top=Math.max(8,r.top-12);
     tip.style.left=left+'px'; tip.style.top=top+'px';
     clearTimeout(tipTimer); tipTimer=setTimeout(()=> tip.style.display='none', 3000);
-    // não arremessa no clique — construção é sequencial
   }
 
-  // Parser de datas (mantido)
+  /* ---------- PARSERS ---------- */
   function parseDateCell(cell){
     let v=(cell&&typeof cell==='object'&&'v'in cell)?cell.v:cell;
     if(v&&typeof v==='object'){ if('f'in v&&typeof v.f==='string')return parseDateCell(v.f); if('v'in v) return parseDateCell(v.v); }
     if(!v) return null;
     if(typeof v==='string'){
       const gv=v.match(/Date\((\d+),\s*(\d+),\s*(\d+)/i); if(gv) return new Date(+gv[1],+gv[2],+gv[3]);
-      const iso=v.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/); if(iso) return new Date(+iso[1],
+      const iso=v.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/); if(iso) return new Date(+iso[1],+iso[2]-1,+iso[3]);
+      const br=v.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/); if(br){const d=+br[1],m=+br[2],y=+br[3]<100?2000+ +br[3]:+br[3];return new Date(y,m-1,d)}
+      return null;
+    }
+    if(typeof v==='number'){const base=Date.UTC(1899,11,30);return new Date(base+v*86400*1000)}
+    return null;
+  }
+
+  /* ---------- FETCH PLANILHA ---------- */
+  async function fetchProgress(){
+    const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
+    const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
+    try{
+      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
+      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); if(!m) throw new Error('Formato inesperado');
+      const data=JSON.parse(m[1]); const rows=data.table.rows||[];
+      let raised=0; const campaigns=[];
+      for(const r of rows){
+        const label=r.c?.[0]?.v?.toString().trim(); if(!label) continue;
+        const value=Number(r.c?.[1]?.v || r.c?.[1]?.f || 0);
+        if(label.toLowerCase()==='arrecadado'){ raised=Number(value||0); continue; }
+        const start=parseDateCell(r.c?.[2]); const end=parseDateCell(r.c?.[3]);
+        campaigns.push({label,goal:Number(value||0),start,end});
+      }
+      const today=new Date(); today.setHours(0,0,0,0);
+      let active=campaigns.find(c=>c.start&&c.end&&today>=c.start&&today<=c.end);
+      if(!active) active=campaigns.find(c=>c.goal>0) || {label:'Meta',goal:0};
+      const goal=Number(active.goal||0);
+      const pRaw=goal>0 ? (raised/goal) : 0; const p=Math.max(0,Math.min(1,pRaw));
+
+      applyProgress(p);
+      tweenNumber(hud.raised, raised, n=>formatBRL(n)); tweenNumber(hud.goal, goal, n=>formatBRL(n));
+      hud.goalLabel.textContent=active.label||'Meta';
+      hud.pct.textContent=(pRaw*100).toFixed(1).replace('.',',')+'%';
+      hud.updated.textContent='Atualizado em '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+      try{localStorage.setItem('tj:last',JSON.stringify({p,raised,goal,ts:Date.now()}));}catch{}
+    }catch(e){
+      console.error('Erro ao buscar planilha:',e);
+      const last=localStorage.getItem('tj:last'); if(last){ const {p,raised,goal,ts}=JSON.parse(last);
+        applyProgress(p); hud.raised.textContent=formatBRL(raised); hud.goal.textContent=formatBRL(goal);
+        hud.pct.textContent=(p*100).toFixed(1).replace('.',',')+'%'; hud.updated.textContent='Offline — último: '+new Date(ts).toLocaleString('pt-BR');
+      }else if(hud.updated.textContent==='—'){ hud.updated.textContent='(Erro na planilha)' }
+    }
+  }
+
+  const canon = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+
+  async function fetchDonors(){
+    if(!CONFIG.donorsOn) {donors=[]; assignDonorsToBricks(); dbgDonors.textContent='desligado'; return;}
+    try{
+      const base=`https://docs.google.com/spreadsheets/d/${(CONFIG.donorsSheetId||CONFIG.sheetId)}/gviz/tq`;
+      const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.donorsSheet,range:CONFIG.donorsRange,t:Date.now()+''});
+      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); 
+      const txt=await res.text();
+      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); if(!m) throw new Error('Formato inesperado');
+      const data=JSON.parse(m[1]);
+      const cols=(data.table.cols||[]).map(c => (c.label||'').toString());
+      const rows=data.table.rows||[];
+
+      let header = cols; let headerFromRow = false;
+      if (!header.some(h => (h||'').trim().length)){
+        const r0 = rows[0]; if (r0 && r0.c){ header = r0.c.map(c => (c?.v ?? c?.f ?? '').toString()); headerFromRow = true; }
+      }
+
+      const wanted = canon(CONFIG.donorsHeader);
+      const headerCanon = header.map(canon);
+
+      let colIdx = headerCanon.findIndex(h => h === wanted);
+      if (colIdx === -1) colIdx = headerCanon.findIndex(h => h.includes(wanted) || wanted.includes(h));
+
+      // tentar achar nome, evitando e-mail/telefone
+      const nameCandidates = ['nome','nome completo','name'];
+      let nameIdx = headerCanon.findIndex(hc =>
+        nameCandidates.some(cand => hc === cand || hc.startsWith(cand + ' '))
+      );
+      if (nameIdx === -1) {
+        nameIdx = headerCanon.findIndex(hc =>
+          /\b(nome|name)\b/.test(hc) && !/\b(email|e[- ]?mail|telefone|celular|whats|whatsapp)\b/.test(hc)
+        );
+      }
+      if (nameIdx < 0) nameIdx = -1;
+
+      if (colIdx === -1){
+        donors=[]; dbgDonors.textContent='cabeçalho não encontrado';
+      }else{
+        const startIdx = headerFromRow ? 1 : 0; const out=[];
+        for (let i=startIdx;i<rows.length;i++){
+          const r = rows[i]; if(!r || !r.c) continue;
+          const cell = r.c[colIdx];
+          const v = (cell?.v ?? cell?.f ?? '').toString().trim();
+          if (v){
+            let name = '';
+            if (nameIdx >= 0 && r.c[nameIdx]){
+              name = (r.c[nameIdx]?.v ?? r.c[nameIdx]?.f ?? '').toString().trim();
+            }
+            name = (name || '').replace(/\s+/g,' ').trim();
+            out.push({ name, msg: v, value: 0 });
+          }
+        }
+        donors = out; dbgDonors.textContent = 'carregados: ' + donors.length;
+      }
+      assignDonorsToBricks();
+    }catch(e){
+      console.warn('Doadores: falha ao ler',e);
+      donors=[]; assignDonorsToBricks(); dbgDonors.textContent='erro/permissão';
+    }
+  }
+
+  /* ---------- CONTROLES ---------- */
+  function syncControls(){
+    optMascotOn.checked = CONFIG.mascot;
+    optMascotSrc.value = CONFIG.mascotSrc;
+    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 90;
+    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 75;
+    optDonorsOn.checked = CONFIG.donorsOn;
+    optNamesMode.value = CONFIG.namesMode;
+    optHudOn.checked = !CONFIG.hudOff;
+  }
+  function saveSettings(){ try{localStorage.setItem('tj:settings', JSON.stringify({...CONFIG}));}catch{} }
+  function applySettings(){
+    CONFIG.mascot = optMascotOn.checked;
+    CONFIG.mascotSrc = optMascotSrc.value;
+    CONFIG.mascotX = (optMascotX.value==='' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
+    CONFIG.mascotY = (optMascotY.value==='' ? '75'  : optMascotY.value) + (String(optMascotY.value).includes('%')?'':'%');
+    CONFIG.donorsOn = optDonorsOn.checked;
+    CONFIG.namesMode = optNamesMode.value;
+    CONFIG.hudOff = !optHudOn.checked;
+
+    if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
+
+    setMascotByAnchor(); colorizeBricks(); layoutBricks(); fetchDonors(); saveSettings();
+  }
+  optMascotOn.onchange = applySettings;
+  optMascotSrc.onchange = applySettings;
+  optMascotX.oninput = applySettings;
+  optMascotY.oninput = applySettings;
+  optDonorsOn.onchange = applySettings;
+  optNamesMode.onchange = applySettings;
+  optHudOn.onchange = applySettings;
+
+  btnRefresh.onclick = ()=> {
+    fetchProgress().then(()=>{
+      btnRefresh.textContent = 'Atualizado ✔';
+      setTimeout(()=> btnRefresh.textContent='Atualizar agora', 1200);
+    });
+    fetchDonors();
+  };
+  btnSimulate.onclick = ()=> {
+    // Visual apenas (não mexe na planilha)
+    const last = localStorage.getItem('tj:last');
+    let goal = 0;
+    if(last){ try{ goal = JSON.parse(last).goal||0; }catch{} }
+    applyProgress(1);
+    if (goal>0) tweenNumber(hud.raised, goal, n=>formatBRL(n));
+    hud.pct.textContent='100,0%';
+    setTimeout(fetchProgress, 4000);
+  };
+  btnCopyLink.onclick = ()=>{
+    const u=new URL(location.href);
+    const params=new URLSearchParams();
+    if(CONFIG.donorsOn) params.set('donors','1');
+    if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
+    if(CONFIG.hudOff) params.set('hud','0');
+    if(CONFIG.donorsSheetId!==DEFAULTS.donorsSheetId) params.set('donors_sheet_id', CONFIG.donorsSheetId);
+    if(CONFIG.donorsSheet!==DEFAULTS.donorsSheet)   params.set('donors_sheet', CONFIG.donorsSheet);
+    if(CONFIG.donorsHeader!==DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
+    if (CONFIG.mascotX !== DEFAULTS.mascotX) params.set('mascot_x', CONFIG.mascotX);
+    if (CONFIG.mascotY !== DEFAULTS.mascotY) params.set('mascot_y', CONFIG.mascotY);
+    u.search = params.toString();
+    navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
+  };
+  btnReset.onclick = ()=>{ Object.assign(CONFIG, DEFAULTS); syncControls(); applySettings(); };
+
+  fab.onclick = ()=> drawer.classList.add('open');
+  closeDrawer.onclick = ()=> drawer.classList.remove('open');
+  if (qs.get('debug') !== '1') document.querySelectorAll('.debug-row').forEach(el => el.style.display='none');
+
+  /* ---------- INIT ---------- */
+  document.body.classList.add('no-anim');
+  syncControls(); if(CONFIG.hudOff) hud.box.classList.add('hidden');
+
+  const ro=new ResizeObserver(()=>{ layoutBricks(); setMascotByAnchor(); }); ro.observe(gauge);
+  window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
+
+  // carrega logo, desenha grade, lê dados
+  (async()=>{
+    const ok = await new Promise(res=>{
+      const im=new Image();
+      im.onload=()=>{logoImg=im;ghostEl.src=im.src;setMaskImage(im.src);alertBox.style.display='none';res(true)};
+      im.onerror=()=>{alertBox.style.display='block';res(false)};
+      im.src=CONFIG.logo+(CONFIG.logo.includes('?')?'&':'?')+'t='+(Date.now());
+    });
+    layoutBricks();
+    fetchDonors();
+    fetchProgress();
+    setInterval(fetchProgress, CONFIG.pollMs);
+  })();
+})();
+</script>
+</body>
+</html>
