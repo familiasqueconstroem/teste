@@ -320,8 +320,10 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const bFg=bricksFg[i],bBg=bricksBg[i];const x=bFg._x,y=bFg._y,w=bFg._w,h=bFg._h;
       const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
-      const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
-      if (A < 10) { // ALTERADO: Limiar ainda mais baixo para reduzir áreas cinzas e preencher mais
+       const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
+
+      // MUDANÇA DRASTICA: Agora, apenas pixels 100% transparentes serão considerados "fundo".
+      if (A === 0) {
         // FORA do logo (muro de fundo): tijolo forte e visível (camada de fundo)
         fg.style.background = 'transparent';
         const base = hexToRgb(baseHex);
