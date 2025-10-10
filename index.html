@@ -29,7 +29,7 @@ body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-syste
 .brick.filled .fill{width:100%}
 /* sem animação no primeiro paint */
 .no-anim .brick .fill{ transition:none !important; }
-/* reforço sutil do muro */
+/* reforço do muro de fundo */
 .bricks-bg .brick{
   box-shadow: inset 0 0 0 var(--joint) var(--grid), 0 0 0 1px rgba(0,0,0,.03);
 }
@@ -126,20 +126,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       <button class="btn" id="closeDrawer">Fechar</button>
     </div>
     <div class="body">
-      <h4>Visual</h4>
-      <div class="row">
-        <label>Paleta:</label>
-        <select id="optPalette">
-          <option value="brand3">Brand 3 (azul/amarelo/vinho)</option>
-          <option value="brand2">Brand 2 (azul/amarelo)</option>
-        </select>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label style="min-width:110px">Tamanho visual:</label>
-        <input id="optBrickScale" class="slider" type="range" min="0.60" max="1.00" step="0.02">
-        <span class="small">Resolução sempre no máximo</span>
-      </div>
-
       <h4>Mascote</h4>
       <div class="row">
         <label>Mostrar:</label><input id="optMascotOn" class="switch" type="checkbox" checked>
@@ -218,12 +204,18 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     donorsRange:'A1:Z10000',
     namesMode:'first',
 
+    // Visual travado
     logo:'logo.png', cols:120, rows:72, brickPx:0, targetBricks:0, gap:1,
-    pollMs:30000, pad:0, grout:'', joint:'', ghost:'', palette:'brand3',
+    pollMs:30000, pad:0, grout:'', joint:'', ghost:'',
+    palette:'brand3', // travada
     embed:false, hudOff:false,
+
+    // Mascote
     mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false,
     mascotX:'90%', mascotY:'75%',
-    brickScale:1.0  // escala visual (resolução SEMPRE Auto)
+
+    // animação de construção
+    buildSpeedMs:110 // intervalo entre tijolos (ajustável)
   };
 
   function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
@@ -232,8 +224,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   // merge: URL > saved > defaults
   const CONFIG={...DEFAULTS,...SAVED,
     ...Object.fromEntries([...qs.entries()].map(([k,v])=>{
-      if(['brick_px','cols','rows','gap','poll_ms','pad','target_bricks'].includes(k)) return [toKey(k), +v];
-      if(['brick_scale'].includes(k)) return [toKey(k), +v];
+      if(['cols','rows','gap','poll_ms','pad'].includes(k)) return [toKey(k), +v];
       if(['donors','embed','hud','mascot','respect_motion'].includes(k)) return [toKey(k), v==='1'];
       if(['mascot_x','mascot_y'].includes(k)) return [toKey(k), v];
       return [toKey(k), v];
@@ -242,9 +233,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   function toKey(k){return ({
     'sheet_id':'sheetId','sheet':'sheetName','range':'range',
     'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','donors_header':'donorsHeader','names':'namesMode',
-    'logo':'logo','cols':'cols','rows':'rows','brick_px':'brickPx','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
+    'logo':'logo','cols':'cols','rows':'rows','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
     'embed':'embed','hud':'hudOn','target_bricks':'targetBricks','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion',
-    'mascot_x':'mascotX','mascot_y':'mascotY','brick_scale':'brickScale'
+    'mascot_x':'mascotX','mascot_y':'mascotY'
   }[k]||k)}
 
   // aplicar variáveis de estilo opcionais
@@ -267,8 +258,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   // controls
   const fab=document.getElementById('fab'), drawer=document.getElementById('drawer'),
         closeDrawer=document.getElementById('closeDrawer'),
-        optPalette=document.getElementById('optPalette'),
-        optBrickScale=document.getElementById('optBrickScale'),
         optMascotOn=document.getElementById('optMascotOn'),
         optMascotSrc=document.getElementById('optMascotSrc'),
         optMascotX=document.getElementById('optMascotX'),
@@ -290,10 +279,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   /* ---------- estado de desenho ---------- */
   const paintCanvas=document.createElement('canvas');
   const pctx=paintCanvas.getContext('2d',{willReadFrequently:true});
-  let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,lastFilled=0,donors=[];
+  let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,donors=[];
   let firstApplyDone=false; // para tirar animações no primeiro paint
-  let lastGoalValue=0, lastRaisedValue=0; // para simulação visual
-  let lastAutoBrickW = 14; // (mantido p/ compat) não usado quando escala visual
+  let lastGoalValue=0, lastRaisedValue=0;
+
+  // construção animada
+  let buildTimer=null, builtOnce=false, animFilled=0; // índice de tijolos “de fato colocados”
+  let _orderFg=[],_orderBg=[];
+  let __throwLock = false;
 
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
@@ -317,14 +310,19 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     for(const h of set){const c2=hexToRgb(h);const d=dist2(c1,c2);if(d<bestD){bestD=d;best=h}}return best}
   const makeSampler=(data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))), i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]};
   const median=a=>{const b=a.slice().sort((m,n)=>m-n);return b[Math.floor(b.length/2)]};
-  // dá um “up” de contraste escurecendo levemente um hex (#rrggbb)
-  function darkenHex(hex, amt=0.15){
-    const c = hexToRgb(hex);
-    const k = Math.max(0, Math.min(1, 1-amt));
-    return `rgb(${Math.round(c.r*k)},${Math.round(c.g*k)},${Math.round(c.b*k)})`;
+
+  // reforço no preenchimento: usa alpha MÁXIMO dentre amostras (dilatação leve)
+  function isInsideLogo(sampleAs){
+    const Amax = Math.max.apply(null, sampleAs); // se QUALQUER ponto é opaco, consideramos “dentro”
+    return Amax >= 20; // limiar baixinho para evitar “cinzas” espalhados
   }
 
-  // Colorize com muro de fundo forte e logo destacado
+  // leve contraste a mais
+  function darkenHex(hex, amt=0.12){
+    const n=parseInt(hex.replace('#',''),16), r=(n>>16)&255,g=(n>>8)&255,b=n&255, k=Math.max(0,1-amt);
+    return `rgb(${Math.round(r*k)},${Math.round(g*k)},${Math.round(b*k)})`;
+  }
+
   function colorizeBricks(){
     if(!logoImg) return; const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
     paintCanvas.width=W;paintCanvas.height=H;pctx.clearRect(0,0,W,H);
@@ -332,34 +330,44 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const dx=(W-dw)/2,dy=(H-dh)/2;pctx.drawImage(logoImg,dx,dy,dw,dh);
     const buf=pctx.getImageData(0,0,W,H).data;const samp=makeSampler(buf,W,H);
     const baseHex = getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim() || '#a35a41';
+
     for(let i=0;i<bricksFg.length;i++){
       const bFg=bricksFg[i],bBg=bricksBg[i];const x=bFg._x,y=bFg._y,w=bFg._w,h=bFg._h;
-      const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
+      // grade mais densa de amostras p/ letras/grades finas
+      const pts=[
+        [x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],
+        [x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2],
+        [x+w*0.25,y+h*0.25],[x+w*0.75,y+h*0.25],[x+w*0.25,y+h*0.75],[x+w*0.75,y+h*0.75]
+      ];
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
-      const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
-      if (A < 100) {
-        // FORA do logo (muro de fundo): tijolo forte e visível (camada de fundo)
+      const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
+
+      if (!isInsideLogo(as)){
+        // FORA do logo (muro de fundo): tijolo forte e visível
         fg.style.background = 'transparent';
         const base = hexToRgb(baseHex);
         bg.style.background = `rgb(${base.r},${base.g},${base.b})`;
         bg.style.opacity = '1';
       } else {
-        // DENTRO do logo: usar a cor da paleta (mapeada do logo) com um leve “boost” de contraste
+        // DENTRO do logo: usa paleta a partir da cor local (mesmo se área for clara)
         const r=median(rs),g=median(gs),b=median(bs);
         const pc = mapToPalette(r,g,b,CONFIG.palette);
-        fg.style.background = darkenHex(pc, 0.15); // 15% mais “vivo”
+        fg.style.background = darkenHex(pc, 0.12);
         bg.style.opacity='0';
       }
     }
   }
 
-  let _orderFg=[],_orderBg=[];
-  function buildOrder(rows,cols){const of=[],ob=[];for(let r=rows-1;r>=0;r--){for(let c=0;c<cols;c++){const i=r*cols+c;of.push(bricksFg[i]);ob.push(bricksBg[i])}} _orderFg=of;_orderBg=ob; assignDonorsToBricks(); }
+  function buildOrder(rows,cols){
+    const of=[],ob=[];
+    for(let r=rows-1;r>=0;r--){for(let c=0;c<cols;c++){const i=r*cols+c;of.push(bricksFg[i]);ob.push(bricksBg[i])}}
+    _orderFg=of;_orderBg=ob; assignDonorsToBricks();
+  }
 
   function layoutBricks(){
     ensureAspectFromLogo(); const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
 
-    // SEMPRE Auto (alta resolução): a “brincadeira” é só escala visual
+    // Auto fixo (alta resolução)
     if(CONFIG.targetBricks>0){
       const ar=W/H;
       const rows=Math.max(12,Math.round(Math.sqrt(CONFIG.targetBricks/(ar*1.0))));
@@ -376,8 +384,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const gridWMax=Math.max(gridWEven,gridWOdd);
     const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
 
-    if (CONFIG.brickPx === 0) { lastAutoBrickW = brickW; } // compat
-
     const total=rows*cols;
     if(bricksFg.length!==total){
       bricksFgEl.innerHTML='';bricksBgEl.innerHTML='';bricksFg=[];bricksBg=[];
@@ -393,14 +399,13 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
     }
 
-    const scale = Math.max(0.6, Math.min(1.0, CONFIG.brickScale||1.0));
     let idx=0;
     for(let r=0;r<rows;r++){
       const startX=startXBase+(r%2?offset:0);
       for(let c=0;c<cols;c++){
         const x=startX+c*(brickW+gap),y=gap+r*(brickH+gap);
-        const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
-        const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+        const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
+        const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px;`;
         idx++;
       }
     }
@@ -414,43 +419,65 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   function applyProgress(p, skipThrow){
     p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
 
-    // Desliga animações no primeiro paint
     if(!firstApplyDone){ document.body.classList.add('no-anim'); }
 
     const of=_orderFg,ob=_orderBg,total=of.length; if(!total) return;
     const filled=Math.floor(p*total), frac=(p*total)-filled;
+
+    // zera visual
     for(let i=0;i<total;i++){
       const fF=of[i].querySelector('.fill'), fB=ob[i].querySelector('.fill');
       of[i].classList.remove('filled','partial'); fF.style.width='0%';
       ob[i].classList.remove('filled','partial'); fB.style.width='0%';
-      if(i<filled){ of[i].classList.add('filled'); fF.style.width='100%'; ob[i].classList.add('filled'); fB.style.width='100%'; }
     }
-    if(filled<total){
-      const fF=of[filled].querySelector('.fill'), fB=ob[filled].querySelector('.fill');
-      const percent=Math.round(frac*100)+'%';
-      of[filled].classList.add('partial'); fF.style.width=percent;
-      ob[filled].classList.add('partial'); fB.style.width=percent;
+    // aplica até o animFilled (o que já foi “construído”)
+    for(let i=0;i<Math.min(animFilled, total);i++){
+      const fF=_orderFg[i].querySelector('.fill'), fB=_orderBg[i].querySelector('.fill');
+      _orderFg[i].classList.add('filled'); fF.style.width='100%';
+      _orderBg[i].classList.add('filled'); fB.style.width='100%';
+    }
+    // se alvo é maior que já construído, deixa o próximo parcial (só para feedback)
+    if(!skipThrow && animFilled < filled && filled < total){
+      const fF=_orderFg[animFilled].querySelector('.fill'), fB=_orderBg[animFilled].querySelector('.fill');
+      _orderFg[animFilled].classList.add('partial'); fF.style.width='30%';
+      _orderBg[animFilled].classList.add('partial'); fB.style.width='30%';
     }
 
-    // Reativa animações só depois do primeiro apply
     if(!firstApplyDone){
       firstApplyDone=true;
       requestAnimationFrame(()=> document.body.classList.remove('no-anim'));
     }
-
-    if (!skipThrow && CONFIG.mascot && filled > lastFilled){
-      throwBrickTo(of[filled-1]||of[0]); // arremessa o tijolo recém-colocado
-      lastFilled=filled;
-    }
   }
 
-  // Posição do mascote (percentual ou px) via left/top (sem conflito com animação)
+  // Constrói, tijolo por tijolo, até p (0..1)
+  function buildToProgress(pTarget){
+    const of=_orderFg,total=of.length; if(!total) return;
+    const target = Math.floor(pTarget*total);
+    if(buildTimer) clearInterval(buildTimer);
+
+    buildTimer = setInterval(()=>{
+      if(animFilled >= target){ clearInterval(buildTimer); buildTimer=null; return; }
+      const i = animFilled;
+      const brick = of[i];
+      // anima arremesso do mascote para o brick i
+      throwBrickTo(brick, ()=> {
+        // marca brick como preenchido
+        brick.classList.add('filled');
+        brick.querySelector('.fill').style.width='100%';
+        _orderBg[i].classList.add('filled');
+        _orderBg[i].querySelector('.fill').style.width='100%';
+        animFilled++;
+      });
+    }, CONFIG.buildSpeedMs);
+  }
+
+  // Posição do mascote
   function setMascotByAnchor(){
     if(!CONFIG.mascot){ mascotBox.style.display='none'; return; }
     if(CONFIG.respectMotion && matchMedia('(prefers-reduced-motion: reduce)').matches){ mascotBox.style.display='none'; return; }
     mascotImg.src=CONFIG.mascotSrc;
     mascotBox.style.display='block';
-    mascotWrap.classList.add('idle'); // anima “aceno” no wrapper
+    mascotWrap.classList.add('idle');
 
     const gR=gauge.getBoundingClientRect();
     const xp = String(CONFIG.mascotX ?? '').toLowerCase().includes('%')
@@ -459,23 +486,22 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const yp = String(CONFIG.mascotY ?? '').toLowerCase().includes('%')
       ? (parseFloat(CONFIG.mascotY)/100)*gR.height
       : parseFloat(CONFIG.mascotY||0);
-    const x = Math.round(xp - 55);   // compensação da largura do PNG (~110px/2)
-    const y = Math.round(yp - 60);   // altura aproximada acima do muro
+    const x = Math.round(xp - 55);
+    const y = Math.round(yp - 60);
     mascotBox.style.left = x + 'px';
     mascotBox.style.top  = y + 'px';
   }
 
-  // Arremesso mais lento + throttle (sem travar)
-  let __throwLock = false;
-  function throwBrickTo(brick){
-    if(!brick || !firstApplyDone || __throwLock) return;
-    __throwLock = true; // impede arremessos sobrepostos
+  // Arremesso (tijolo “unidade”) mais lento + callback quando chega
+  function throwBrickTo(brick, onArrive){
+    if(!brick || __throwLock) { if(onArrive) onArrive(); return; }
+    __throwLock = true;
     const fx=document.createElement('div'); fx.className='fx-brick'; gauge.appendChild(fx);
     const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect(), mR=mascotBox.getBoundingClientRect();
-    const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78; // “mão” do mascote
+    const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78;
     const tx=bR.left-gR.left + bR.width/2 -13, ty=bR.top-gR.top + bR.height/2 -7;
     fx.style.left=sx+'px'; fx.style.top=sy+'px';
-    fx.style.transition='transform 1.3s cubic-bezier(.2,.7,.2,1), opacity 1.3s';
+    fx.style.transition='transform 0.9s cubic-bezier(.2,.7,.2,1), opacity 0.9s';
     fx.style.transform = 'translate(0,0) scale(0.9)';
     requestAnimationFrame(()=>{
       fx.style.transform=`translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.02)`;
@@ -483,11 +509,15 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     });
     setTimeout(()=>{
       fx.style.opacity='0';
-      setTimeout(()=>{ fx.remove(); __throwLock = false; }, 320);
-    }, 1300);
+      setTimeout(()=>{
+        fx.remove(); __throwLock = false;
+        if (onArrive) onArrive();
+      }, 220);
+    }, 900);
   }
 
   // ——— DOADORES: atribui aos tijolos atuais sempre que layout muda ———
+  let donors=[];
   function assignDonorsToBricks(){
     const of=_orderFg;
     for(let i=0;i<of.length;i++){ of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
@@ -502,7 +532,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const donor=brick._donor;
     const r=brick.getBoundingClientRect();
 
-    // Regra: 'off' não mostra nome nem mensagem; 'first' mostra nome curto; 'full' nome completo.
     const hasDonor = !!(CONFIG.donorsOn && donor);
     const showPersonal = hasDonor && CONFIG.namesMode !== 'off';
 
@@ -510,11 +539,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if (showPersonal && donor.name) {
       displayName = (CONFIG.namesMode === 'full') ? (donor.name || '') : firstName(donor.name || '');
     }
-    const donorTitle = showPersonal && displayName
-      ? `<b>${displayName}</b>`
-      : `<b>Obrigado!</b>`;
-
-    const showMsg = showPersonal && donor && donor.msg; // em 'off' não mostra msg
+    const donorTitle = showPersonal && displayName ? `<b>${displayName}</b>` : `<b>Obrigado!</b>`;
+    const showMsg = showPersonal && donor && donor.msg;
 
     const html = showMsg
       ? `${donorTitle}<div>${donor.msg}</div><div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Cada tijolo conta 💛'}</div>`
@@ -524,7 +550,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-320); const top=Math.max(8,r.top-12);
     tip.style.left=left+'px'; tip.style.top=top+'px';
     clearTimeout(tipTimer); tipTimer=setTimeout(()=> tip.style.display='none', 3000);
-    if(CONFIG.mascot){ setMascotByAnchor(); throwBrickTo(brick); }
+    // não arremessa no clique — construção é sequencial
   }
 
   // Parser de datas (mantido)
@@ -542,7 +568,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     return null;
   }
 
-  // --- Lógica de valores (com tracking dos últimos para simulação) ---
+  // --- Lógica de valores ---
   async function fetchProgress(){
     const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
     const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
@@ -566,8 +592,20 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       lastGoalValue = goal;
       lastRaisedValue = raised;
 
-      applyProgress(p);
-      tweenNumber(hud.raised, raised, n=>formatBRL(n)); tweenNumber(hud.goal, goal, n=>formatBRL(n));
+      // se for a primeira vez, começa a construir do zero até p
+      if(!builtOnce){
+        animFilled = 0;
+        applyProgress(p, /*skipThrow*/ true);
+        setMascotByAnchor();
+        buildToProgress(p);
+        builtOnce = true;
+      }else{
+        // já estava construindo — continue até o novo alvo
+        buildToProgress(p);
+      }
+
+      tweenNumber(hud.raised, raised, n=>formatBRL(n));
+      tweenNumber(hud.goal, goal, n=>formatBRL(n));
       hud.goalLabel.textContent=active.label||'Meta';
       hud.pct.textContent=(pRaw*100).toFixed(1).replace('.',',')+'%';
       hud.updated.textContent='Atualizado em '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -577,19 +615,20 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }catch(e){
       console.error('Erro ao buscar planilha:',e);
       const last=localStorage.getItem('tj:last'); if(last){ const {p,raised,goal,ts}=JSON.parse(last);
-        applyProgress(p); hud.raised.textContent=formatBRL(raised); hud.goal.textContent=formatBRL(goal);
+        applyProgress(p, true);
+        hud.raised.textContent=formatBRL(raised); hud.goal.textContent=formatBRL(goal);
         hud.pct.textContent=(p*100).toFixed(1).replace('.',',')+'%'; hud.updated.textContent='Offline — último: '+new Date(ts).toLocaleString('pt-BR');
       }else if(hud.updated.textContent==='—'){ hud.updated.textContent='(Erro na planilha)' }
       return {ok:false};
     }
   }
 
-  // ——— Normalização “sem acento/pontuação” para comparar cabeçalhos ———
+  // ——— Normalização p/ cabeçalhos ———
   const canon = s => (s||'').toString().toLowerCase()
                       .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                       .replace(/[^a-z0-9]+/g,' ').trim();
 
-  // --- Doadores (Forms) por CABEÇALHO; robusto a header na 1ª linha ---
+  // --- Doadores (Forms) ---
   async function fetchDonors(){
     if(!CONFIG.donorsOn) {donors=[]; assignDonorsToBricks(); dbgDonors.textContent='desligado'; return;}
     try{
@@ -619,7 +658,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       let colIdx = headerCanon.findIndex(h => h === wanted);
       if (colIdx === -1) colIdx = headerCanon.findIndex(h => h.includes(wanted) || wanted.includes(h));
 
-      // procura coluna de nome com mais rigor (evita pegar e-mail/telefone)
+      // acha nome evitando e-mail/telefone
       const nameCandidates = ['nome','nome completo','name'];
       let nameIdx = headerCanon.findIndex(hc =>
         nameCandidates.some(cand => hc === cand || hc.startsWith(cand + ' '))
@@ -646,7 +685,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
             if (nameIdx >= 0 && r.c[nameIdx]){
               name = (r.c[nameIdx]?.v ?? r.c[nameIdx]?.f ?? '').toString().trim();
             }
-            // garante que "nome completo" não herde lixo de outras colunas
             name = (name || '').replace(/\s+/g,' ').trim();
             out.push({ name, msg: v, value: 0 });
           }
@@ -667,8 +705,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
 
   /* ---------- Controles (UI) ---------- */
   function syncControls(){
-    optPalette.value = CONFIG.palette;
-    optBrickScale.value = CONFIG.brickScale || 1.0;
     optMascotOn.checked = CONFIG.mascot;
     optMascotSrc.value = CONFIG.mascotSrc;
     optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 90;
@@ -679,10 +715,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   }
   function saveSettings(){ const copy={...CONFIG}; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
   function applySettings(){
-    CONFIG.palette = optPalette.value;
-    // resolução SEMPRE no Auto; só escala visual:
-    CONFIG.brickPx = 0;
-    CONFIG.brickScale = Math.max(0.6, Math.min(1.0, Number(optBrickScale.value||1.0)));
     CONFIG.mascot = optMascotOn.checked;
     CONFIG.mascotSrc = optMascotSrc.value;
     CONFIG.mascotX = (optMascotX.value==='' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
@@ -690,9 +722,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     CONFIG.donorsOn = optDonorsOn.checked;
     CONFIG.namesMode = optNamesMode.value;
     CONFIG.hudOff = !optHudOn.checked;
-
-    // Força recálculo completo do grid (mantendo densidade alta)
-    effCols = undefined; effRows = undefined;
 
     if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
 
@@ -702,8 +731,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     fetchDonors();
     saveSettings();
   }
-  optPalette.onchange = applySettings;
-  optBrickScale.oninput = ()=>{ applySettings(); };
   optMascotOn.onchange = applySettings;
   optMascotSrc.onchange = applySettings;
   optMascotX.oninput = ()=>{ applySettings(); };
@@ -727,23 +754,19 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   };
 
   btnSimulate.onclick = ()=> {
-    // Simula 100% do objetivo (temporário)
+    // Simula 100% (temporário) usando o construtor
     if (pollId) { clearInterval(pollId); pollId = null; }
-    const p = 1;
-    applyProgress(p);
-    if (lastGoalValue && lastGoalValue > 0) {
-      hud.pct.textContent = '100,0%';
-      tweenNumber(hud.raised, lastGoalValue, n=>formatBRL(n));
-    } else {
-      hud.pct.textContent = '100,0%';
-    }
+    const target = 1;
+    builtOnce = true;
+    buildToProgress(target);
+    hud.pct.textContent = '100,0%';
+    if (lastGoalValue && lastGoalValue > 0) tweenNumber(hud.raised, lastGoalValue, n=>formatBRL(n));
     setTimeout(()=> startPolling(), 6000);
   };
 
   btnCopyLink.onclick = ()=>{
     const u=new URL(location.href);
     const params=new URLSearchParams();
-    if(CONFIG.palette!==DEFAULTS.palette) params.set('palette',CONFIG.palette);
     if(CONFIG.donorsOn) params.set('donors','1');
     if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
     if(CONFIG.hudOff) params.set('hud','0');
@@ -752,7 +775,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if(CONFIG.donorsHeader!==DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
     if (CONFIG.mascotX !== DEFAULTS.mascotX) params.set('mascot_x', CONFIG.mascotX);
     if (CONFIG.mascotY !== DEFAULTS.mascotY) params.set('mascot_y', CONFIG.mascotY);
-    if((CONFIG.brickScale||1) !== 1) params.set('brick_scale', (CONFIG.brickScale).toFixed(2));
     u.search = params.toString();
     navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
   };
@@ -770,7 +792,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   }
 
   /* ---------- inicialização ---------- */
-  document.body.classList.add('no-anim'); // sem animação no 1º paint
+  document.body.classList.add('no-anim');
 
   syncControls();
   if(CONFIG.hudOff) hud.box.classList.add('hidden');
@@ -779,8 +801,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
 
   loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks(); setMascotByAnchor();});
-  fetchDonors();            // lê doadores (Forms) por cabeçalho (robusto)
-  fetchProgress().then(()=> startPolling());          // valores do painel e inicia polling
+  fetchDonors();
+  fetchProgress().then(()=> startPolling());
 })();
 </script>
 </body>
