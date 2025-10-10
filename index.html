@@ -321,7 +321,21 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
        const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
+// =============== INÍCIO DO CÓDIGO DE DEBUG ===============
+// Tente estimar as coordenadas X e Y de uma área que deveria ser azul
+// O canto superior esquerdo é (0, 0)
+if (i % 200 === 0) { // Isso vai inspecionar 1 a cada 200 tijolos
+    const r=median(rs),g=median(gs),b=median(bs);
+    const corMapeada = mapToPalette(r,g,b,CONFIG.palette);
 
+    console.log('--- Inspecionando Tijolo Aleatório ---');
+    console.log(`Índice: ${i} | Coordenadas (x,y): ${Math.round(x)}, ${Math.round(y)}`);
+    console.log(`TRANSPARÊNCIA (A): ${A}`);
+    console.log(`COR AMOSTRADA (R,G,B): ${r}, ${g}, ${b}`);
+    console.log(`COR DA PALETA ESCOLHIDA: ${corMapeada}`);
+    console.log('------------------------------------');
+}
+// =============== FIM DO CÓDIGO DE DEBUG ===============
       // MUDANÇA DRASTICA: Agora, apenas pixels 100% transparentes serão considerados "fundo".
       if (A === 0) {
         // FORA do logo (muro de fundo): tijolo forte e visível (camada de fundo)
