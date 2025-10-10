@@ -215,7 +215,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     mascotX:'90%', mascotY:'75%',
 
     // animação de construção
-    buildSpeedMs:110 // intervalo entre tijolos (ajustável)
+    buildSpeedMs:110 // intervalo entre tijolos
   };
 
   function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
@@ -279,7 +279,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   /* ---------- estado de desenho ---------- */
   const paintCanvas=document.createElement('canvas');
   const pctx=paintCanvas.getContext('2d',{willReadFrequently:true});
-  let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,donors=[];
+  let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0;
   let firstApplyDone=false; // para tirar animações no primeiro paint
   let lastGoalValue=0, lastRaisedValue=0;
 
@@ -287,6 +287,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   let buildTimer=null, builtOnce=false, animFilled=0; // índice de tijolos “de fato colocados”
   let _orderFg=[],_orderBg=[];
   let __throwLock = false;
+
+  // ——— DOADORES ——— (⚠️ DEFINIÇÃO ÚNICA!)
+  let donors=[];
 
   function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
   function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
@@ -304,7 +307,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   function ensureAspectFromLogo(){ if(aspectSet||!logoImg) return; const ar=logoImg.naturalWidth/logoImg.naturalHeight; if(ar>0) gauge.style.aspectRatio=`${ar} / 1`; aspectSet=true; }
 
   const PALETTES={brand2:['#0A4AA6','#F2C035'],brand3:['#0A4AA6','#F2C035','#8B1E1E']};
-  const hexToRgb=h=>{const n=parseInt(h.replace('#',''),16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}};
+  const hexToRgb=h=>{const n=parseInt(h.replace('#',''),16);return{r:(n>>16)&255,g:(n>>8)&255,b=n&255}};
   const dist2=(c1,c2)=>{const dr=c1.r-c2.r,dg=c1.g-c2.g,db=c1.b-c2.b;return dr*dr+dg*dg+db*db};
   function mapToPalette(r,g,b,name){const set=PALETTES[name];if(!set)return`rgb(${r},${g},${b})`;let best=set[0],bestD=Infinity,c1={r,g,b};
     for(const h of set){const c2=hexToRgb(h);const d=dist2(c1,c2);if(d<bestD){bestD=d;best=h}}return best}
@@ -516,8 +519,7 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     }, 900);
   }
 
-  // ——— DOADORES: atribui aos tijolos atuais sempre que layout muda ———
-  let donors=[];
+  // ——— atribui doadores aos tijolos atuais sempre que layout muda ———
   function assignDonorsToBricks(){
     const of=_orderFg;
     for(let i=0;i<of.length;i++){ of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
@@ -560,250 +562,4 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     if(!v) return null;
     if(typeof v==='string'){
       const gv=v.match(/Date\((\d+),\s*(\d+),\s*(\d+)/i); if(gv) return new Date(+gv[1],+gv[2],+gv[3]);
-      const iso=v.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/); if(iso) return new Date(+iso[1],+iso[2]-1,+iso[3]);
-      const br=v.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/); if(br){const d=+br[1],m=+br[2],y=+br[3]<100?2000+ +br[3]:+br[3];return new Date(y,m-1,d)}
-      return null;
-    }
-    if(typeof v==='number'){const base=Date.UTC(1899,11,30);return new Date(base+v*86400*1000)}
-    return null;
-  }
-
-  // --- Lógica de valores ---
-  async function fetchProgress(){
-    const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
-    const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
-    try{
-      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); const data=JSON.parse(m[1]); const rows=data.table.rows||[];
-      let raised=0; const campaigns=[];
-      for(const r of rows){
-        const label=r.c?.[0]?.v?.toString().trim(); if(!label) continue;
-        const value=Number(r.c?.[1]?.v || r.c?.[1]?.f || 0);
-        if(label.toLowerCase()==='arrecadado'){ raised=Number(value||0); continue; }
-        const start=parseDateCell(r.c?.[2]); const end=parseDateCell(r.c?.[3]);
-        campaigns.push({label,goal:Number(value||0),start,end});
-      }
-      const today=new Date(); today.setHours(0,0,0,0);
-      let active=campaigns.find(c=>c.start&&c.end&&today>=c.start&&today<=c.end);
-      if(!active) active=campaigns.find(c=>c.goal>0) || {label:'Meta',goal:0};
-      const goal=Number(active.goal||0);
-      const pRaw=goal>0 ? (raised/goal) : 0; const p=Math.max(0,Math.min(1,pRaw));
-
-      lastGoalValue = goal;
-      lastRaisedValue = raised;
-
-      // se for a primeira vez, começa a construir do zero até p
-      if(!builtOnce){
-        animFilled = 0;
-        applyProgress(p, /*skipThrow*/ true);
-        setMascotByAnchor();
-        buildToProgress(p);
-        builtOnce = true;
-      }else{
-        // já estava construindo — continue até o novo alvo
-        buildToProgress(p);
-      }
-
-      tweenNumber(hud.raised, raised, n=>formatBRL(n));
-      tweenNumber(hud.goal, goal, n=>formatBRL(n));
-      hud.goalLabel.textContent=active.label||'Meta';
-      hud.pct.textContent=(pRaw*100).toFixed(1).replace('.',',')+'%';
-      hud.updated.textContent='Atualizado em '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-
-      try{localStorage.setItem('tj:last',JSON.stringify({p,raised,goal,ts:Date.now()}));}catch{}
-      return {ok:true, raised, goal, p};
-    }catch(e){
-      console.error('Erro ao buscar planilha:',e);
-      const last=localStorage.getItem('tj:last'); if(last){ const {p,raised,goal,ts}=JSON.parse(last);
-        applyProgress(p, true);
-        hud.raised.textContent=formatBRL(raised); hud.goal.textContent=formatBRL(goal);
-        hud.pct.textContent=(p*100).toFixed(1).replace('.',',')+'%'; hud.updated.textContent='Offline — último: '+new Date(ts).toLocaleString('pt-BR');
-      }else if(hud.updated.textContent==='—'){ hud.updated.textContent='(Erro na planilha)' }
-      return {ok:false};
-    }
-  }
-
-  // ——— Normalização p/ cabeçalhos ———
-  const canon = s => (s||'').toString().toLowerCase()
-                      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-                      .replace(/[^a-z0-9]+/g,' ').trim();
-
-  // --- Doadores (Forms) ---
-  async function fetchDonors(){
-    if(!CONFIG.donorsOn) {donors=[]; assignDonorsToBricks(); dbgDonors.textContent='desligado'; return;}
-    try{
-      const base=`https://docs.google.com/spreadsheets/d/${(CONFIG.donorsSheetId||CONFIG.sheetId)}/gviz/tq`;
-      const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.donorsSheet,range:CONFIG.donorsRange,t:Date.now()+''});
-      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); 
-      const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); 
-      const data=JSON.parse(m[1]);
-      const cols=(data.table.cols||[]).map(c => (c.label||'').toString());
-      const rows=data.table.rows||[];
-
-      let header = cols;
-      let headerFromRow = false;
-
-      if (!header.some(h => (h||'').trim().length)){
-        const r0 = rows[0];
-        if (r0 && r0.c){
-          header = r0.c.map(c => (c?.v ?? c?.f ?? '').toString());
-          headerFromRow = true;
-        }
-      }
-
-      const wanted = canon(CONFIG.donorsHeader);
-      const headerCanon = header.map(canon);
-
-      let colIdx = headerCanon.findIndex(h => h === wanted);
-      if (colIdx === -1) colIdx = headerCanon.findIndex(h => h.includes(wanted) || wanted.includes(h));
-
-      // acha nome evitando e-mail/telefone
-      const nameCandidates = ['nome','nome completo','name'];
-      let nameIdx = headerCanon.findIndex(hc =>
-        nameCandidates.some(cand => hc === cand || hc.startsWith(cand + ' '))
-      );
-      if (nameIdx === -1) {
-        nameIdx = headerCanon.findIndex(hc =>
-          /\b(nome|name)\b/.test(hc) && !/\b(email|e[- ]?mail|telefone|celular|whats|whatsapp)\b/.test(hc)
-        );
-      }
-      if (nameIdx < 0) nameIdx = -1;
-
-      if (colIdx === -1){
-        donors=[];
-        dbgDonors.textContent='cabeçalho não encontrado';
-      }else{
-        const startIdx = headerFromRow ? 1 : 0;
-        const out=[];
-        for (let i=startIdx;i<rows.length;i++){
-          const r = rows[i]; if(!r || !r.c) continue;
-          const cell = r.c[colIdx];
-          const v = (cell?.v ?? cell?.f ?? '').toString().trim();
-          if (v){
-            let name = '';
-            if (nameIdx >= 0 && r.c[nameIdx]){
-              name = (r.c[nameIdx]?.v ?? r.c[nameIdx]?.f ?? '').toString().trim();
-            }
-            name = (name || '').replace(/\s+/g,' ').trim();
-            out.push({ name, msg: v, value: 0 });
-          }
-        }
-        donors = out;
-        dbgDonors.textContent = 'carregados: ' + donors.length;
-      }
-
-      assignDonorsToBricks();
-      return {ok:true, count: donors.length};
-    }catch(e){
-      console.warn('Doadores: falha ao ler',e);
-      donors=[]; assignDonorsToBricks();
-      dbgDonors.textContent='erro/permissão';
-      return {ok:false};
-    }
-  }
-
-  /* ---------- Controles (UI) ---------- */
-  function syncControls(){
-    optMascotOn.checked = CONFIG.mascot;
-    optMascotSrc.value = CONFIG.mascotSrc;
-    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 90;
-    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 75;
-    optDonorsOn.checked = CONFIG.donorsOn;
-    optNamesMode.value = CONFIG.namesMode;
-    optHudOn.checked = !CONFIG.hudOff;
-  }
-  function saveSettings(){ const copy={...CONFIG}; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
-  function applySettings(){
-    CONFIG.mascot = optMascotOn.checked;
-    CONFIG.mascotSrc = optMascotSrc.value;
-    CONFIG.mascotX = (optMascotX.value==='' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
-    CONFIG.mascotY = (optMascotY.value==='' ? '75'  : optMascotY.value) + (String(optMascotY.value).includes('%')?'':'%');
-    CONFIG.donorsOn = optDonorsOn.checked;
-    CONFIG.namesMode = optNamesMode.value;
-    CONFIG.hudOff = !optHudOn.checked;
-
-    if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
-
-    setMascotByAnchor();
-    colorizeBricks();
-    layoutBricks();
-    fetchDonors();
-    saveSettings();
-  }
-  optMascotOn.onchange = applySettings;
-  optMascotSrc.onchange = applySettings;
-  optMascotX.oninput = ()=>{ applySettings(); };
-  optMascotY.oninput = ()=>{ applySettings(); };
-  optDonorsOn.onchange = ()=>{ applySettings(); };
-  optNamesMode.onchange = applySettings;
-  optHudOn.onchange = applySettings;
-
-  let pollId = null;
-  function startPolling() {
-    if (pollId) clearInterval(pollId);
-    pollId = setInterval(fetchProgress, CONFIG.pollMs);
-  }
-
-  btnRefresh.onclick = ()=> {
-    fetchProgress().then(()=>{
-      btnRefresh.textContent = 'Atualizado ✔';
-      setTimeout(()=> btnRefresh.textContent='Atualizar agora', 1200);
-    });
-    fetchDonors();
-  };
-
-  btnSimulate.onclick = ()=> {
-    // Simula 100% (temporário) usando o construtor
-    if (pollId) { clearInterval(pollId); pollId = null; }
-    const target = 1;
-    builtOnce = true;
-    buildToProgress(target);
-    hud.pct.textContent = '100,0%';
-    if (lastGoalValue && lastGoalValue > 0) tweenNumber(hud.raised, lastGoalValue, n=>formatBRL(n));
-    setTimeout(()=> startPolling(), 6000);
-  };
-
-  btnCopyLink.onclick = ()=>{
-    const u=new URL(location.href);
-    const params=new URLSearchParams();
-    if(CONFIG.donorsOn) params.set('donors','1');
-    if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
-    if(CONFIG.hudOff) params.set('hud','0');
-    if(CONFIG.donorsSheetId!==DEFAULTS.donorsSheetId) params.set('donors_sheet_id', CONFIG.donorsSheetId);
-    if(CONFIG.donorsSheet!==DEFAULTS.donorsSheet)   params.set('donors_sheet', CONFIG.donorsSheet);
-    if(CONFIG.donorsHeader!==DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
-    if (CONFIG.mascotX !== DEFAULTS.mascotX) params.set('mascot_x', CONFIG.mascotX);
-    if (CONFIG.mascotY !== DEFAULTS.mascotY) params.set('mascot_y', CONFIG.mascotY);
-    u.search = params.toString();
-    navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
-  };
-  btnReset.onclick = ()=>{
-    Object.assign(CONFIG, DEFAULTS);
-    syncControls(); applySettings();
-  };
-
-  fab.onclick = ()=> drawer.classList.add('open');
-  closeDrawer.onclick = ()=> drawer.classList.remove('open');
-
-  // Oculta as linhas de debug por padrão; exibe somente com ?debug=1
-  if (qs.get('debug') !== '1') {
-    document.querySelectorAll('.debug-row').forEach(el => el.style.display='none');
-  }
-
-  /* ---------- inicialização ---------- */
-  document.body.classList.add('no-anim');
-
-  syncControls();
-  if(CONFIG.hudOff) hud.box.classList.add('hidden');
-
-  const ro=new ResizeObserver(()=>{ layoutBricks(); if(CONFIG.mascot) setMascotByAnchor(); }); ro.observe(gauge);
-  window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
-
-  loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks(); setMascotByAnchor();});
-  fetchDonors();
-  fetchProgress().then(()=> startPolling());
-})();
-</script>
-</body>
-</html>
+      const iso=v.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/); if(iso) return new Date(+iso[1],
