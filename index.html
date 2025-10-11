@@ -324,25 +324,35 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
       const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
        const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
-// =============== INÍCIO DO CÓDIGO DE DEBUG (VERSÃO CELULAR) ===============
+// =============== INÍCIO DO CÓDIGO DE DEBUG (VERSÃO COM MIRA) ===============
 if (i % 200 === 0) { // Inspeciona 1 a cada 200 tijolos
     const debugConsole = document.getElementById('debug-console');
     if (debugConsole) {
+        // --- NOVIDADE: PINTANDO A BORDA DO TIJOLO ALVO ---
+        const tijoloInspecionado = bricksFg[i];
+        if (tijoloInspecionado) {
+            tijoloInspecionado.style.outline = '1px solid red';
+            tijoloInspecionado.style.outlineOffset = '-1px';
+        }
+        // --- FIM DA NOVIDADE ---
+
         const r = median(rs), g = median(gs), b = median(bs);
         const corMapeada = mapToPalette(r, g, b, CONFIG.palette);
         const A_max = Math.max.apply(null, as);
         const estaDentro = A_max >= 20;
 
         let output = `------------------------------------<br>`;
-        output += `Índice: ${i} | XY: ${Math.round(x)}, ${Math.round(y)}<br>`;
+        output += `<b>TIJOLO VERMELHO (Índice: ${i})</b><br>`; // Adicionado um título para fácil identificação
+        output += `XY: ${Math.round(x)}, ${Math.round(y)} | `;
         output += `A_max: ${A_max} | Dentro?: ${estaDentro}<br>`;
-        output += `Cor (RGB): ${r}, ${g}, ${b}<br>`;
+        output += `Cor (RGB): ${r}, ${g}, ${b} | `;
         output += `Paleta: ${corMapeada}<br>`;
-
-        debugConsole.innerHTML += output;
+        
+        // Adiciona a nova mensagem no topo do console, para ficar mais fácil de ver
+        debugConsole.innerHTML = output + debugConsole.innerHTML;
     }
 }
-// =============== FIM DO CÓDIGO DE DEBUG (VERSÃO CELULAR) ===============
+// =============== FIM DO CÓDIGO DE DEBUG (VERSÃO COM MIRA) ===============
       // MUDANÇA DRASTICA: Agora, apenas pixels 100% transparentes serão considerados "fundo".
       if (A === 0) {
         // FORA do logo (muro de fundo): tijolo forte e visível (camada de fundo)
