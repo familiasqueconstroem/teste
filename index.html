@@ -37,9 +37,9 @@ body{
 .brick{
   position:absolute; background:var(--grout); border-radius:2px; overflow:hidden;
   box-shadow:inset 0 0 0 var(--joint) var(--grid);
-  /* dicas pro compositor não “otimizar” com subpixel */
   transform:translateZ(0);
   backface-visibility:hidden;
+  outline:1px solid transparent; /* hairline-fix opcional */
 }
 .brick .fill{position:absolute; inset:0; width:0%; height:100%; background:var(--brick-bg-color); transition:width .35s ease}
 .brick.filled .fill{width:100%}
@@ -300,16 +300,22 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
   const hexToRgb=h=>{const n=parseInt(h.replace('#',''),16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}};
   const dist2=(c1,c2)=>{const dr=c1.r-c2.r,dg=c1.g-c2.g,db=c1.b-c2.b;return dr*dr+dg*dg+db*db};
   function mapToPalette(r,g,b,name){ const set=PALETTES[name]; if(!set) return `rgb(${r},${g},${b})`; let best=set[0],bestD=Infinity,c1={r,g,b}; for(const h of set){const c2=hexToRgb(h);const d=dist2(c1,c2);if(d<bestD){bestD=d;best=h}} return best; }
-  const makeSampler=(data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))), i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]};
   const median=a=>{const b=a.slice().sort((m,n)=>m-n);return b[Math.floor(b.length/2)]};
 
-  /* --------- Colorização com votação para eliminar “cinzas” --------- */
+  /* --------- Colorização HiDPI sem smoothing + votos --------- */
   function colorizeBricks(){
     if(!logoImg) return;
     const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
-    paintCanvas.width=W; paintCanvas.height=H; pctx.clearRect(0,0,W,H);
 
-    // desenha o logo “contain” centralizado
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    paintCanvas.width  = W * dpr;
+    paintCanvas.height = H * dpr;
+    paintCanvas.style.width  = W + 'px';
+    paintCanvas.style.height = H + 'px';
+    pctx.setTransform(dpr,0,0,dpr,0,0);
+    pctx.imageSmoothingEnabled = false;
+    pctx.clearRect(0,0,W,H);
+
     const arLogo=logoImg.naturalWidth/logoImg.naturalHeight, arCanvas=W/H;
     let drawW,drawH,drawX,drawY;
     if(arLogo>arCanvas){ drawW=W; drawH=W/arLogo; drawX=0; drawY=(H-drawH)/2; }
@@ -317,7 +323,8 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     pctx.drawImage(logoImg, drawX,drawY,drawW,drawH);
 
     const buf=pctx.getImageData(0,0,W,H).data;
-    const samp=makeSampler(buf,W,H);
+    const samp=(x,y)=>{ const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))); const i=(yi*W+xi)*4; return [buf[i],buf[i+1],buf[i+2],buf[i+3]]; };
+
     const baseHex=getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim()||'#a35a41';
     const baseRgb=hexToRgb(baseHex);
 
@@ -328,10 +335,14 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const bBg=bricksBg[i];
       const x=bFg._x, y=bFg._y, w=bFg._w, h=bFg._h;
 
+      // margem interna para evitar pegar rejunte/borda
+      const marg = Math.max(1, Math.floor(Math.min(w,h) * 0.06));
+      const ix = x + marg, iy = y + marg, iw = Math.max(1, w - marg*2), ih = Math.max(1, h - marg*2);
+
       const rs=[],gs=[],bs=[],as=[]; let inside=0,outside=0;
       for(let sx=1;sx<=5;sx++){
         for(let sy=1;sy<=5;sy++){
-          const px=x + (w/6)*sx, py=y + (h/6)*sy;
+          const px=ix + (iw/6)*sx, py=iy + (ih/6)*sy;
           const d=samp(px,py);
           rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]);
           if(d[3]>=IN_THR) inside++; else if(d[3]<=OUT_THR) outside++;
@@ -349,11 +360,9 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
         bg.style.background=`rgb(${baseRgb.r},${baseRgb.g},${baseRgb.b})`;
         bg.style.opacity='1';
       } else {
-        // faixas de transição — puxa levemente pro logo
         const pc=mapToPalette(rMed,gMed,bMed,CONFIG.palette);
         const pcRgb=hexToRgb(pc);
-        let t=(aAvg-OUT_THR)/(IN_THR-OUT_THR); t=Math.max(0,Math.min(1,t));
-        t=Math.pow(t,0.8); // viés pró-logo
+        let t=(aAvg-OUT_THR)/(IN_THR-OUT_THR); t=Math.max(0,Math.min(1,t)); t=Math.pow(t,0.8);
         const mix=(a,b,k)=>Math.round(a*k + b*(1-k));
         const mr=mix(pcRgb.r, baseRgb.r, Math.max(0.6,t));
         const mg=mix(pcRgb.g, baseRgb.g, Math.max(0.6,t));
@@ -381,34 +390,40 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
     assignDonorsToBricks();
   }
 
-  /* --------- Layout 100% inteiro em px (sem frações, sem transform) --------- */
+  /* --------- Layout com distribuição centrada das “sobras” --------- */
   function layoutBricks(){
     ensureAspectFromLogo();
     const W=bricksFgEl.clientWidth, H=bricksFgEl.clientHeight; if(!W||!H) return;
 
     const gap = CONFIG.gap|0;
 
-    // define quantidade efetiva de colunas/linhas (usa CONFIG se vier setado)
     const cols = CONFIG.cols|0;
     const rows = CONFIG.rows|0;
     effCols = cols; effRows = rows;
 
-    // Distribuição de sobra — larguras
+    // larguras base e sobra distribuída do centro para as bordas
     const freeW = W - (cols + 1) * gap;
     const baseW = Math.floor(freeW / cols);
     let remW = freeW - baseW * cols;
-    const widths = Array(cols).fill(baseW).map((w,i)=> w + (i<remW?1:0));
+    const widths = new Array(cols).fill(baseW);
+    const orderW = [];
+    for (let i=0;i<cols;i++){ const mid=(cols-1)/2; orderW.push([i, Math.abs(i-mid)]); }
+    orderW.sort((a,b)=> a[1]-b[1]);
+    for (let k=0; k<cols && remW>0; k++){ widths[orderW[k][0]] += 1; remW--; }
 
-    // Distribuição de sobra — alturas + prefix-sum pra Y exato
+    // alturas base e sobra distribuída do centro para as bordas
     const freeH = H - (rows + 1) * gap;
     const baseH = Math.floor(freeH / rows);
     let remH = freeH - baseH * rows;
-    const heights = Array(rows).fill(baseH).map((h,i)=> h + (i<remH?1:0));
+    const heights = new Array(rows).fill(baseH);
+    const orderH = [];
+    for (let i=0;i<rows;i++){ const mid=(rows-1)/2; orderH.push([i, Math.abs(i-mid)]); }
+    orderH.sort((a,b)=> a[1]-b[1]);
+    for (let k=0; k<rows && remH>0; k++){ heights[orderH[k][0]] += 1; remH--; }
+
+    // prefixo Y exato
     const yPrefix = new Array(rows+1).fill(0);
     for(let r=0;r<rows;r++) yPrefix[r+1] = yPrefix[r] + heights[r] + gap;
-    const totalH = yPrefix[rows];
-    const deltaH = (H - gap) - totalH;
-    if (deltaH !== 0){ heights[rows-1] += deltaH; yPrefix[rows] += deltaH; }
 
     const offset = Math.floor(widths[0] / 2);
 
@@ -437,7 +452,6 @@ select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;bord
       const isStaggered = r%2!==0;
       const numColsInRow = cols + (isStaggered?1:0);
 
-      // X acumulado
       let x = gap + (isStaggered ? -offset : 0);
       for(let c=0;c<numColsInRow;c++){
         const colW = widths[c % cols];
