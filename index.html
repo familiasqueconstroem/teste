@@ -1,143 +1,132 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tijolômetro — Cada Tijolo Conta</title>
-<link rel="preconnect" href="https://docs.google.com"><link rel="dns-prefetch" href="https://docs.google.com">
-<meta name="theme-color" content="#8B1E1E">
-<style>
-:root{
-  --bg:#FFFAF5; --grout:#E5DBD1; --grid:#CDBFB3; --brick-bg-color:#a35a41;
-  --pad:0px; --joint:0.8px; --ghost:0.12; --panel-max-width:1600px;
-}
-*{box-sizing:border-box} html,body{height:100%}
-body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;display:flex;align-items:center;justify-content:center;padding:12px}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px) scale(.99)}to{opacity:1;transform:none}}
-.panel{width:min(var(--panel-max-width),98vw);background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.08);
-  padding:16px;display:flex;flex-direction:column;gap:16px;animation:fadeIn .5s ease-out}
-.gauge{position:relative;width:100%;border-radius:14px;overflow:hidden;background:#F7EFE7;min-height:300px}
-.ghost-logo{position:absolute;inset:var(--pad);width:calc(100% - (var(--pad) * 2));height:calc(100% - (var(--pad) * 2));
-  margin:auto;object-fit:contain;opacity:var(--ghost);filter:grayscale(1) sepia(1) brightness(1.5); z-index:30; pointer-events:none}
-.bricks-bg{position:absolute;inset:0; z-index:4}
-.mask-layer{position:absolute;inset:0;background:transparent;--mask:url('logo.png');
-  -webkit-mask-image:var(--mask);mask-image:var(--mask);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
-  -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain; z-index:8}
-.bricks{position:relative;width:100%;height:100%}
-.brick{position:absolute;background:var(--grout);border-radius:2px;overflow:hidden;box-shadow: inset 0 0 0 var(--joint) var(--grid); transform-origin: top left;}
-.brick .fill{position:absolute;inset:0;width:0%;height:100%;background:var(--brick-bg-color);transition:width .35s ease}
-.brick.filled .fill{width:100%}
-/* sem animação no primeiro paint */
-.no-anim .brick .fill{ transition:none !important; }
-/* reforço sutil do muro */
-.bricks-bg .brick{
-  box-shadow: inset 0 0 0 var(--joint) var(--grid), 0 0 0 1px rgba(0,0,0,.03);
-}
-
-.hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fdfdfd;font-variant-numeric:tabular-nums;align-items:center}
-.hud .item{display:flex;flex-direction:column;gap:2px}
-.hud .label{font-size:12px;color:#666}.hud .value{font-size:20px;font-weight:800}.hud .pct{font-weight:900}
-.hud .updated{justify-self:end;font-size:11px;color:#777;text-align:right}
-@media (max-width:740px){.hud{grid-template-columns:repeat(2,minmax(0,1fr))}.hud .updated{grid-column:1/-1;justify-self:start;text-align:left}}
-.alert{position:absolute;left:14px;top:14px;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:8px 10px;border-radius:10px;font-size:12px;display:none}
-.alert b{display:block;margin-bottom:4px}
-
-/* Mascote (posicionamento por left/top; animação no wrapper interno) */
-.mascot{position:absolute;left:0;top:0;z-index:40;pointer-events:none;display:none;transition:left .28s cubic-bezier(.2,.8,.2,1), top .28s cubic-bezier(.2,.8,.2,1)}
-.mascot img{display:block;width:110px;height:auto}
-.carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
-.mascotWrap{display:inline-block}
-@keyframes bob { 0%,100% { transform: translateY(0) rotate(0deg);} 50%{ transform: translateY(-4px) rotate(-0.4deg);} }
-@keyframes wave{ 0%,100% { transform: rotate(0deg);} 50%{ transform: rotate(-12deg);} }
-.mascotWrap.idle { animation: bob 3.5s ease-in-out infinite; }
-.mascotWrap .carry-brick { transform-origin: 90% 120%; animation: wave 1.8s ease-in-out infinite; }
-
-/* Tooltip */
-#tip{
-  position:fixed; z-index:10050; display:none;
-  background:#fff; color:#111; border:1px solid #ddd; padding:8px 10px; border-radius:10px;
-  box-shadow:0 8px 24px rgba(0,0,0,.18); max-width:320px; font:14px/1.3 system-ui; white-space:normal;
-}
-#tip .mini{ font-size:12px; color:#666; margin-top:4px }
-
-body.embed{background:transparent}.hud.hidden{display:none}
-
-/* -------- Painel de Controles -------- */
-.fab{position:fixed;right:18px;bottom:18px;z-index:9998;width:54px;height:54px;border-radius:50%;
-  background:#0A4AA6;color:#fff;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 12px 28px rgba(0,0,0,.18);cursor:pointer;font-size:22px}
-.fab:active{transform:scale(.98)}
-.drawer{position:fixed;inset:0 0 0 auto;width:340px;max-width:92vw;background:#fff;border-left:1px solid #eee;box-shadow:-16px 0 40px rgba(0,0,0,.18);
-  transform:translateX(105%);transition:transform .28s ease;z-index:9999;display:flex;flex-direction:column}
-.drawer.open{transform:none}
-.drawer .head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee}
-.drawer .body{padding:12px 16px 18px;overflow:auto}
-.drawer h4{margin:14px 0 8px 0}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.row label{font-size:13px;color:#333}
-select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff}
-.switch{appearance:none;width:42px;height:24px;background:#ddd;border-radius:999px;position:relative;outline:none;cursor:pointer}
-.switch:checked{background:#0A4AA6}
-.switch::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:999px;background:#fff;transition:left .18s}
-.switch:checked::after{left:20px}
-.slider{width:100%}
-.btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer}
-.btn.primary{background:#0A4AA6;color:#fff;border-color:#0A4AA6}
-.small{font-size:12px;color:#666}
-.small.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-.debug-row{opacity:0.7}
-</style>
-</head>
-<body>
-  <div class="panel">
-    <div class="gauge" id="gauge">
-      <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique o arquivo logo.png.</div>
-
-      <img class="ghost-logo" id="ghostLogo" alt="logo" />
-
-      <!-- Mascote (wrapper interno para animação) -->
-      <div class="mascot" id="mascot" aria-hidden="true">
-        <div class="mascotWrap" id="mascotWrap">
-          <img id="mascotImg" src="Tio_Jolinho_tijolo.png" alt="Tio Jolinho">
-          <div class="carry-brick" id="carryBrick" style="left:64px;top:58px"></div>
-        </div>
-      </div>
-
-      <div class="bricks-bg" id="bricksBg"></div>
-      <div class="mask-layer" id="mask"><div class="bricks" id="bricksFg"></div></div>
     </div>
+      <script>
+        // --- PARTE 1: LÓGICA DE CRIAÇÃO E RESOLUÇÃO DOS TIJOLOS ---
 
-    <div class="hud" id="hud">
-      <div class="item"><span class="label">Arrecadado</span><span class="value" id="hudRaised">R$ 0,00</span></div>
-      <div class="item"><span class="label" id="hudGoalLabel">Meta</span><span class="value" id="hudGoal">R$ 0,00</span></div>
-      <div class="item"><span class="label">Progresso</span><span class="value pct" id="hudPct">0%</span></div>
-      <div class="updated" id="hudUpdated">—</div>
-    </div>
-  </div>
+        // Elementos do HTML que vamos manipular
+        const gauge = document.getElementById('gauge');
+        const bricksBg = document.getElementById('bricksBg');
+        const bricksFg = document.getElementById('bricksFg');
+        const brickScaleSlider = document.getElementById('optBrickScale');
 
-  <!-- Tooltip -->
-  <div id="tip"></div>
+        // Configurações iniciais dos tijolos
+        const BRICK_BASE_WIDTH = 80; // Largura base de um tijolo em pixels
+        const BRICK_ASPECT_RATIO = 2.2; // Proporção do tijolo (largura / altura)
 
-  <!-- FAB e Drawer -->
-  <button class="fab" id="fab" title="Opções">⚙️</button>
-  <aside class="drawer" id="drawer" aria-label="Controles do Tijolômetro">
-    <div class="head">
-      <strong>Opções do Tijolômetro</strong>
-      <button class="btn" id="closeDrawer">Fechar</button>
-    </div>
-    <div class="body">
-      <h4>Visual</h4>
-      <div class="row">
-        <label>Paleta:</label>
-        <select id="optPalette">
-          <option value="brand3">Brand 3 (azul/amarelo/vinho)</option>
-          <option value="brand2">Brand 2 (azul/amarelo)</option>
-        </select>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label style="min-width:110px">Tamanho visual:</label>
-        <input id="optBrickScale" class="slider" type="range" min="0.60" max="1.00" step="0.02">
-        <span class="small">Resolução sempre no máximo</span>
-      </div>
-</body>
+        /**
+         * Função que cria a grade de tijolos.
+         * @param {HTMLElement} container - O elemento onde os tijolos serão inseridos.
+         * @param {number} scale - O fator de escala (0.6 a 1.0) vindo do slider.
+         */
+        function createBricks(container, scale = 1.0) {
+          // Limpa tijolos antigos antes de criar novos
+          container.innerHTML = '';
+
+          // Pega as dimensões do contêiner principal
+          const width = gauge.clientWidth;
+          const height = gauge.clientHeight;
+
+          // Calcula o tamanho do tijolo baseado na escala do slider
+          const brickWidth = BRICK_BASE_WIDTH * scale;
+          const brickHeight = brickWidth / BRICK_ASPECT_RATIO;
+
+          const numRows = Math.ceil(height / brickHeight);
+          const numCols = Math.ceil(width / brickWidth);
+
+          // Loop para criar cada linha de tijolos
+          for (let row = 0; row < numRows; row++) {
+            // Loop para criar cada tijolo na linha
+            for (let col = 0; col < numCols; col++) {
+              const brick = document.createElement('div');
+              brick.className = 'brick';
+
+              // Calcula a posição (left, top) de cada tijolo
+              let left = col * brickWidth;
+              const top = row * brickHeight;
+              
+              // Adiciona o deslocamento em linhas ímpares para o efeito de amarração
+              if (row % 2 !== 0) {
+                left -= brickWidth / 2;
+              }
+
+              // Aplica o estilo ao tijolo
+              brick.style.width = `${brickWidth}px`;
+              brick.style.height = `${brickHeight}px`;
+              brick.style.left = `${left}px`;
+              brick.style.top = `${top}px`;
+              
+              // Adiciona o tijolo ao contêiner
+              container.appendChild(brick);
+            }
+          }
+        }
+        
+        // Função para recriar os tijolos quando o slider mudar
+        function handleScaleChange() {
+            const scale = brickScaleSlider.value;
+            // Recria tanto no fundo (background) quanto na frente (foreground)
+            createBricks(bricksBg, scale);
+            createBricks(bricksFg, scale);
+        }
+
+        // Adiciona o "ouvinte" de evento ao slider
+        brickScaleSlider.addEventListener('input', handleScaleChange);
+
+
+        // --- PARTE 2: LÓGICA DO CONTRASTE E PALETAS DE CORES ---
+
+        const paletteSelector = document.getElementById('optPalette');
+        const rootElement = document.documentElement; // Representa a tag <html>
+
+        // Define as paletas de cores. Você pode adicionar mais aqui!
+        const palettes = {
+          'brand3': { // Paleta original melhorada
+            '--brick-bg-color': '#8B1E1E', // Vinho forte
+            '--grid': '#6D1717', // Sombra do vinho
+            '--bg': '#FFFAF5', // Fundo original
+            '--grout': '#E5DBD1', // Cimento original
+          },
+          'brand2': { // Paleta de alto contraste
+            '--brick-bg-color': '#D9531E', // Laranja vibrante
+            '--grid': '#B54518', // Sombra do laranja
+            '--bg': '#F0F4F8', // Fundo azulado claro
+            '--grout': '#D8DEE4', // Cimento mais frio
+          },
+          // Adicione uma nova paleta aqui se quiser, por exemplo:
+          // 'dark-mode': {
+          //   '--brick-bg-color': '#FFA500',
+          //   '--grid': '#BF7D00',
+          //   '--bg': '#1A1A1A',
+          //   '--grout': '#4A4A4A',
+          // }
+        };
+
+        /**
+         * Aplica uma paleta de cores ao documento.
+         * @param {string} paletteName - O nome da paleta (ex: 'brand3').
+         */
+        function applyPalette(paletteName) {
+          const selectedPalette = palettes[paletteName];
+          // Percorre cada cor na paleta e aplica como uma variável CSS
+          for (const [key, value] of Object.entries(selectedPalette)) {
+            rootElement.style.setProperty(key, value);
+          }
+        }
+
+        // Adiciona o "ouvinte" de evento ao seletor de paletas
+        paletteSelector.addEventListener('change', (event) => {
+          applyPalette(event.target.value);
+        });
+
+
+        // --- INICIALIZAÇÃO ---
+        // Quando a página carregar, executa estas funções pela primeira vez.
+        
+        // 1. Aplica a paleta selecionada por padrão
+        applyPalette(paletteSelector.value);
+        
+        // 2. Cria a primeira grade de tijolos com a escala padrão
+        handleScaleChange();
+
+      </script>
+    </body>
 </html>
