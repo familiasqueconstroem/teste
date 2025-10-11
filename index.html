@@ -178,8 +178,8 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       donorsRange: 'A1:Z10000',
       namesMode: 'first',
       logo: 'logo.png',
-      cols: 120,
-      rows: 72,
+      cols: 200, // Aumentado para mais densidade e detalhe
+      rows: 120, // Aumentado para mais densidade e detalhe
       brickPx: 0,
       targetBricks: 0,
       gap: 1,
@@ -329,11 +329,24 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       paintCanvas.width = W;
       paintCanvas.height = H;
       pctx.clearRect(0, 0, W, H);
-      const ar = logoImg.naturalWidth / logoImg.naturalHeight;
-      let dw = W, dh = W / ar;
-      if (dh > H) { dh = H; dw = H * ar }
-      const dx = (W - dw) / 2, dy = (H - dh) / 2;
-      pctx.drawImage(logoImg, dx, dy, dw, dh);
+      
+      const arLogo = logoImg.naturalWidth / logoImg.naturalHeight;
+      const arCanvas = W / H;
+      let drawW, drawH, drawX, drawY;
+
+      if (arLogo > arCanvas) { // Logo is wider than the canvas aspect ratio
+          drawW = W;
+          drawH = W / arLogo;
+          drawX = 0;
+          drawY = (H - drawH) / 2;
+      } else { // Logo is taller than the canvas aspect ratio
+          drawH = H;
+          drawW = H * arLogo;
+          drawX = (W - drawW) / 2;
+          drawY = 0;
+      }
+      pctx.drawImage(logoImg, drawX, drawY, drawW, drawH);
+
       const buf = pctx.getImageData(0, 0, W, H).data;
       const samp = makeSampler(buf, W, H);
       const baseHex = getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim() || '#a35a41';
