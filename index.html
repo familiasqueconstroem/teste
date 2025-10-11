@@ -410,26 +410,20 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
         if (!W || !H) return;
 
         const gap = CONFIG.gap;
-        // Definimos o tamanho ideal do tijolo para aumentar a densidade
-        const targetBrickWidth = 5; 
-        const targetBrickHeight = 3; 
+        const targetBrickWidth = 5;
+        const targetBrickHeight = 3;
 
-        // Calculamos o número de colunas e linhas para preencher a área
-        // Ajustamos para que o número de colunas possa acomodar o "stagger" de forma mais natural
         const calculatedCols = Math.floor((W - gap) / (targetBrickWidth + gap));
         const calculatedRows = Math.floor((H - gap) / (targetBrickHeight + gap));
 
         effCols = calculatedCols; 
         effRows = calculatedRows;
 
-        // Recalculamos as dimensões exatas do tijolo para que caibam perfeitamente na área
-        const brickW = (W - (effCols + 1) * gap) / effCols;
-        const brickH = (H - (effRows + 1) * gap) / effRows;
-        
-        // Ajuste no offset para que o escalonamento seja mais sutil
-        const offset = brickW / 2; 
+        const brickW_float = (W - (effCols + 1) * gap) / effCols;
+        const brickH_float = (H - (effRows + 1) * gap) / effRows;
+        const offset_float = brickW_float / 2;
 
-        const total = effRows * (effCols + 1); // Potencial máximo de tijolos, ajustado pelo stagger
+        const total = effRows * (effCols + 1);
         if (bricksFg.length < total) {
             bricksFgEl.innerHTML = ''; bricksBgEl.innerHTML = '';
             bricksFg = []; bricksBg = [];
@@ -446,29 +440,31 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
             bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
         }
       
-        const scale = Math.max(0.6, Math.min(1.0, CONFIG.brickScale || 1.0));
         let idx = 0;
         brickMap = [];
         for (let r = 0; r < effRows; r++) {
             brickMap[r] = [];
             const isStaggered = r % 2 !== 0;
-            // O startX agora considera o gap e o offset de forma mais consistente
-            const startX = isStaggered ? (-offset + gap) : gap; 
+            const startX = isStaggered ? (-offset_float + gap) : gap;
             const numColsInRow = effCols + (isStaggered ? 1 : 0);
 
             for (let c = 0; c < numColsInRow; c++) {
                 if (idx >= bricksFg.length) break;
-                const x = startX + c * (brickW + gap);
-                const y = gap + r * (brickH + gap);
                 
+                // CORREÇÃO: Arredondar todas as posições e tamanhos para evitar o "checkerboard"
+                const x = Math.round(startX + c * (brickW_float + gap));
+                const y = Math.round(gap + r * (brickH_float + gap));
+                const w = Math.round(brickW_float);
+                const h = Math.round(brickH_float);
+
                 const F = bricksFg[idx];
-                F.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+                F.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
                 F.style.display = '';
-                F._x = x; F._y = y; F._w = brickW; F._h = brickH;
+                F._x = x; F._y = y; F._w = w; F._h = h; // Armazenar valores arredondados
                 F.dataset.idx = idx;
                 
                 const B = bricksBg[idx];
-                B.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+                B.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
                 B.style.display = '';
 
                 brickMap[r][c] = idx;
@@ -744,7 +740,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       CONFIG.mascot = optMascotOn.checked;
       CONFIG.mascotSrc = optMascotSrc.value;
       CONFIG.mascotX = (optMascotX.value === '' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%') ? '' : '%');
-      CONFIG.mascotY = (optMascotY.value === '' ? '75' : optMascotY.value) + (String(optMascotY).includes('%') ? '' : '%');
+      CONFIG.mascotY = (optMascotY.value === '' ? '75' : optMascotY.value) + (String(optMascotY.value).includes('%') ? '' : '%');
       CONFIG.donorsOn = optDonorsOn.checked;
       CONFIG.namesMode = optNamesMode.value;
       CONFIG.hudOff = !optHudOn.checked;
