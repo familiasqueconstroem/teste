@@ -178,8 +178,8 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       donorsRange: 'A1:Z10000',
       namesMode: 'first',
       logo: 'logo.png',
-      cols: 200, // Aumentado para mais densidade e detalhe
-      rows: 120, // Aumentado para mais densidade e detalhe
+      cols: 200, // Densidade padrão
+      rows: 120, // Densidade padrão
       brickPx: 0,
       targetBricks: 0,
       gap: 1,
@@ -270,6 +270,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
     let logoImg = null, aspectSet = false, bricksFg = [], bricksBg = [], effCols, effRows, lastProgress = 0, lastFilled = 0, donors = [];
     let firstApplyDone = false;
     let lastGoalValue = 0, lastRaisedValue = 0;
+    let brickMap = [];
 
     function setMaskImage(url) { maskEl.style.setProperty('--mask', `url('${url}')`); }
     function formatBRL(n) { try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n); } catch { return 'R$ ' + Number(n || 0).toLocaleString('pt-BR'); } }
@@ -334,16 +335,12 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       const arCanvas = W / H;
       let drawW, drawH, drawX, drawY;
 
-      if (arLogo > arCanvas) { // Logo is wider than the canvas aspect ratio
-          drawW = W;
-          drawH = W / arLogo;
-          drawX = 0;
-          drawY = (H - drawH) / 2;
-      } else { // Logo is taller than the canvas aspect ratio
-          drawH = H;
-          drawW = H * arLogo;
-          drawX = (W - drawW) / 2;
-          drawY = 0;
+      if (arLogo > arCanvas) {
+          drawW = W; drawH = W / arLogo;
+          drawX = 0; drawY = (H - drawH) / 2;
+      } else {
+          drawH = H; drawW = H * arLogo;
+          drawX = (W - drawW) / 2; drawY = 0;
       }
       pctx.drawImage(logoImg, drawX, drawY, drawW, drawH);
 
@@ -352,7 +349,10 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       const baseHex = getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim() || '#a35a41';
       
       for (let i = 0; i < bricksFg.length; i++) {
-        const bFg = bricksFg[i], bBg = bricksBg[i];
+        const brick = bricksFg[i];
+        if (!brick || brick.style.display === 'none') continue;
+        
+        const bFg = brick, bBg = bricksBg[i];
         const x = bFg._x, y = bFg._y, w = bFg._w, h = bFg._h;
         const pts = [
           [x + w / 2, y + h / 2], [x + 1, y + 1], [x + w - 2, y + 1], [x + 1, y + h - 2], [x + w - 2, y + h - 2],
@@ -381,92 +381,99 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
     }
 
     let _orderFg = [], _orderBg = [];
-    function buildOrder(rows, cols) {
-      const of = [], ob = [];
-      for (let r = rows - 1; r >= 0; r--) { 
-        for (let c = 0; c < cols; c++) { 
-          const i = r * cols + c;
-          of.push(bricksFg[i]);
-          ob.push(bricksBg[i]);
+    function buildOrder() {
+        _orderFg = [];
+        _orderBg = [];
+        const rows = effRows;
+        const cols = effCols;
+        for (let r = rows - 1; r >= 0; r--) {
+            const isStaggered = r % 2 !== 0;
+            const numColsInRow = cols + (isStaggered ? 1 : 0);
+            for (let c = 0; c < numColsInRow; c++) {
+                const i = brickMap[r][c];
+                if (i !== undefined) {
+                    _orderFg.push(bricksFg[i]);
+                    _orderBg.push(bricksBg[i]);
+                }
+            }
         }
-      }
-      _orderFg = of;
-      _orderBg = ob;
-      assignDonorsToBricks();
+        assignDonorsToBricks();
     }
 
     function layoutBricks() {
-      ensureAspectFromLogo();
-      const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight;
-      if (!W || !H) return;
-      if (CONFIG.targetBricks > 0) {
-        const ar = W / H;
-        const rows = Math.max(12, Math.round(Math.sqrt(CONFIG.targetBricks / (ar * 1.0))));
-        const cols = Math.max(20, Math.round(rows * ar));
-        effCols = cols; effRows = rows;
-      }
-      const cols = (typeof effCols === 'number' && effCols > 0) ? effCols : CONFIG.cols;
-      const rows = (typeof effRows === 'number' && effRows > 0) ? effRows : CONFIG.rows;
-      const gap = CONFIG.gap;
-      let brickW = Math.floor((W - (cols + 1) * gap) / cols);
-      if (brickW < 2) brickW = 2;
-      let offset = Math.floor(brickW / 2);
-      let gridWEven = cols * brickW + (cols + 1) * gap;
-      let gridWOdd = gridWEven + offset;
-      if (gridWOdd > W) { 
-        const extra = gridWOdd - W; 
-        const reduce = Math.ceil(extra / cols);
-        brickW = Math.max(2, brickW - reduce);
-        offset = Math.floor(brickW / 2);
-      }
-      const brickH = Math.max(2, Math.floor((H - (rows + 1) * gap) / rows));
-      const gridWMax = Math.max(gridWEven, gridWOdd);
-      const startXBase = Math.max(gap, Math.floor((W - gridWMax) / 2) + gap);
-      const total = rows * cols;
-      if (bricksFg.length !== total) {
-        bricksFgEl.innerHTML = '';
-        bricksBgEl.innerHTML = '';
-        bricksFg = [];
-        bricksBg = [];
-        const fragFg = document.createDocumentFragment(), fragBg = document.createDocumentFragment();
-        for (let i = 0; i < total; i++) {
-          const f = document.createElement('div');
-          f.className = 'brick';
-          f.dataset.idx = i;
-          const ffill = document.createElement('div');
-          ffill.className = 'fill';
-          f.appendChild(ffill);
-          fragFg.appendChild(f);
-          bricksFg.push(f);
-          const b = document.createElement('div');
-          b.className = 'brick';
-          const bfill = document.createElement('div');
-          bfill.className = 'fill';
-          b.appendChild(bfill);
-          fragBg.appendChild(b);
-          bricksBg.push(b);
+        ensureAspectFromLogo();
+        const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight;
+        if (!W || !H) return;
+
+        const gap = CONFIG.gap;
+        const idealBrickWidth = 10;
+        const idealBrickHeight = 6;
+        
+        const cols = Math.floor((W - gap) / (idealBrickWidth + gap));
+        const rows = Math.floor((H - gap) / (idealBrickHeight + gap));
+
+        effCols = cols; 
+        effRows = rows;
+
+        const brickW = (W - (cols + 1) * gap) / cols;
+        const brickH = (H - (rows + 1) * gap) / rows;
+        const offset = brickW / 2;
+
+        const total = rows * (cols + 1);
+        if (bricksFg.length < total) {
+            bricksFgEl.innerHTML = ''; bricksBgEl.innerHTML = '';
+            bricksFg = []; bricksBg = [];
+            const fragFg = document.createDocumentFragment(), fragBg = document.createDocumentFragment();
+            for (let i = 0; i < total; i++) {
+                const f = document.createElement('div'); f.className = 'brick';
+                const ffill = document.createElement('div'); ffill.className = 'fill'; f.appendChild(ffill);
+                fragFg.appendChild(f); bricksFg.push(f);
+                
+                const b = document.createElement('div'); b.className = 'brick';
+                const bfill = document.createElement('div'); bfill.className = 'fill'; b.appendChild(bfill);
+                fragBg.appendChild(b); bricksBg.push(b);
+            }
+            bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
         }
-        bricksFgEl.appendChild(fragFg);
-        bricksBgEl.appendChild(fragBg);
-      }
-      const scale = Math.max(0.6, Math.min(1.0, CONFIG.brickScale || 1.0));
-      let idx = 0;
-      for (let r = 0; r < rows; r++) {
-        const startX = startXBase + (r % 2 ? offset : 0);
-        for (let c = 0; c < cols; c++) {
-          const x = startX + c * (brickW + gap), y = gap + r * (brickH + gap);
-          const F = bricksFg[idx];
-          F.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
-          F._x = x; F._y = y; F._w = brickW; F._h = brickH;
-          const B = bricksBg[idx];
-          B.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
-          idx++;
+      
+        const scale = Math.max(0.6, Math.min(1.0, CONFIG.brickScale || 1.0));
+        let idx = 0;
+        brickMap = [];
+        for (let r = 0; r < rows; r++) {
+            brickMap[r] = [];
+            const isStaggered = r % 2 !== 0;
+            const startX = gap - (isStaggered ? offset : 0);
+            const numColsInRow = cols + (isStaggered ? 1 : 0);
+
+            for (let c = 0; c < numColsInRow; c++) {
+                if (idx >= bricksFg.length) break;
+                const x = startX + c * (brickW + gap);
+                const y = gap + r * (brickH + gap);
+                
+                const F = bricksFg[idx];
+                F.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+                F.style.display = '';
+                F._x = x; F._y = y; F._w = brickW; F._h = brickH;
+                F.dataset.idx = idx;
+                
+                const B = bricksBg[idx];
+                B.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+                B.style.display = '';
+
+                brickMap[r][c] = idx;
+                idx++;
+            }
         }
-      }
-      buildOrder(rows, cols);
-      colorizeBricks();
-      applyProgress(lastProgress, true);
-      if (CONFIG.mascot) setMascotByAnchor();
+
+        for (let i = idx; i < bricksFg.length; i++) {
+            bricksFg[i].style.display = 'none';
+            bricksBg[i].style.display = 'none';
+        }
+
+        buildOrder();
+        colorizeBricks();
+        applyProgress(lastProgress, true);
+        if (CONFIG.mascot) setMascotByAnchor();
     }
 
     function applyProgress(p, skipThrow) {
@@ -542,7 +549,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
 
     function assignDonorsToBricks() {
       const of = _orderFg;
-      for (let i = 0; i < of.length; i++) { of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
+      for (let i = 0; i < of.length; i++) { if(of[i]) of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
     }
 
     let tipTimer = null;
