@@ -7,774 +7,804 @@
 <link rel="preconnect" href="https://docs.google.com"><link rel="dns-prefetch" href="https://docs.google.com">
 <meta name="theme-color" content="#8B1E1E">
 <style>
-:root{
-  --bg:#FFFAF5; --grout:#E5DBD1; --grid:#CDBFB3; --brick-bg-color:#a35a41;
-  --pad:0px; --joint:0.8px; --ghost:0.12; --panel-max-width:1600px;
+:root {
+  --bg: #FFFAF5;
+  --grout: #E5DBD1;
+  --grid: #CDBFB3;
+  --brick-bg-color: #a35a41;
+  --pad: 0px;
+  --joint: 0.8px;
+  --ghost: 0.12;
+  --panel-max-width: 1600px;
 }
-*{box-sizing:border-box} html,body{height:100%}
-body{margin:0;background:var(--bg);color:#111;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Arial;display:flex;align-items:center;justify-content:center;padding:12px}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px) scale(.99)}to{opacity:1;transform:none}}
-.panel{width:min(var(--panel-max-width),98vw);background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.08);
-  padding:16px;display:flex;flex-direction:column;gap:16px;animation:fadeIn .5s ease-out}
-.gauge{position:relative;width:100%;border-radius:14px;overflow:hidden;background:#F7EFE7;min-height:300px}
-.ghost-logo{position:absolute;inset:var(--pad);width:calc(100% - (var(--pad) * 2));height:calc(100% - (var(--pad) * 2));
-  margin:auto;object-fit:contain;opacity:var(--ghost);filter:grayscale(1) sepia(1) brightness(1.5); z-index:30; pointer-events:none}
-.bricks-bg{position:absolute;inset:0; z-index:4}
-.mask-layer{position:absolute;inset:0;background:transparent;--mask:url('logo.png');
-  -webkit-mask-image:var(--mask);mask-image:var(--mask);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
-  -webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain; z-index:8}
-.bricks{position:relative;width:100%;height:100%}
-.brick{position:absolute;background:var(--grout);border-radius:2px;overflow:hidden;box-shadow: inset 0 0 0 var(--joint) var(--grid); transform-origin: top left;}
-.brick .fill{position:absolute;inset:0;width:0%;height:100%;background:var(--brick-bg-color);transition:width .35s ease}
-.brick.filled .fill{width:100%}
-/* sem animação no primeiro paint */
-.no-anim .brick .fill{ transition:none !important; }
-/* reforço sutil do muro */
-.bricks-bg .brick{
-  box-shadow: inset 0 0 0 var(--joint) var(--grid), 0 0 0 1px rgba(0,0,0,.03);
-}
-
-.hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:10px;border:1px solid #eee;border-radius:12px;background:#fdfdfd;font-variant-numeric:tabular-nums;align-items:center}
-.hud .item{display:flex;flex-direction:column;gap:2px}
-.hud .label{font-size:12px;color:#666}.hud .value{font-size:20px;font-weight:800}.hud .pct{font-weight:900}
-.hud .updated{justify-self:end;font-size:11px;color:#777;text-align:right}
-@media (max-width:740px){.hud{grid-template-columns:repeat(2,minmax(0,1fr))}.hud .updated{grid-column:1/-1;justify-self:start;text-align:left}}
-.alert{position:absolute;left:14px;top:14px;background:#fff3cd;border:1px solid #ffe69c;color:#664d03;padding:8px 10px;border-radius:10px;font-size:12px;display:none}
-.alert b{display:block;margin-bottom:4px}
-
-/* Mascote (posicionamento por left/top; animação no wrapper interno) */
-.mascot{position:absolute;left:0;top:0;z-index:40;pointer-events:none;display:none;transition:left .28s cubic-bezier(.2,.8,.2,1), top .28s cubic-bezier(.2,.8,.2,1)}
-.mascot img{display:block;width:110px;height:auto}
-.carry-brick,.fx-brick{position:absolute;width:26px;height:14px;background:var(--brick-bg-color);border-radius:2px;box-shadow: inset 0 0 0 1px #8b6f5c}
-.mascotWrap{display:inline-block}
-@keyframes bob { 0%,100% { transform: translateY(0) rotate(0deg);} 50%{ transform: translateY(-4px) rotate(-0.4deg);} }
-@keyframes wave{ 0%,100% { transform: rotate(0deg);} 50%{ transform: rotate(-12deg);} }
+* { box-sizing: border-box }
+html, body { height: 100% }
+body { margin: 0; background: var(--bg); color: #111; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial; display: flex; align-items: center; justify-content: center; padding: 12px }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px) scale(.99) } to { opacity: 1; transform: none } }
+.panel { width: min(var(--panel-max-width), 98vw); background: #fff; border-radius: 20px; box-shadow: 0 8px 30px rgba(0, 0, 0, .08); padding: 16px; display: flex; flex-direction: column; gap: 16px; animation: fadeIn .5s ease-out }
+.gauge { position: relative; width: 100%; border-radius: 14px; overflow: hidden; background: #F7EFE7; min-height: 300px }
+.ghost-logo { position: absolute; inset: var(--pad); width: calc(100% - (var(--pad) * 2)); height: calc(100% - (var(--pad) * 2)); margin: auto; object-fit: contain; opacity: var(--ghost); filter: grayscale(1) sepia(1) brightness(1.5); z-index: 30; pointer-events: none }
+.bricks-bg { position: absolute; inset: 0; z-index: 4 }
+.mask-layer { position: absolute; inset: 0; background: transparent; --mask: url('logo.png'); -webkit-mask-image: var(--mask); mask-image: var(--mask); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; z-index: 8 }
+.bricks { position: relative; width: 100%; height: 100% }
+.brick { position: absolute; background: var(--grout); border-radius: 2px; overflow: hidden; box-shadow: inset 0 0 0 var(--joint) var(--grid); transform-origin: top left; }
+.brick .fill { position: absolute; inset: 0; width: 0%; height: 100%; background: var(--brick-bg-color); transition: width .35s ease }
+.brick.filled .fill { width: 100% }
+.no-anim .brick .fill { transition: none !important; }
+.bricks-bg .brick { box-shadow: inset 0 0 0 var(--joint) var(--grid), 0 0 0 1px rgba(0, 0, 0, .03); }
+.hud { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 10px; border: 1px solid #eee; border-radius: 12px; background: #fdfdfd; font-variant-numeric: tabular-nums; align-items: center }
+.hud .item { display: flex; flex-direction: column; gap: 2px }
+.hud .label { font-size: 12px; color: #666 }
+.hud .value { font-size: 20px; font-weight: 800 }
+.hud .pct { font-weight: 900 }
+.hud .updated { justify-self: end; font-size: 11px; color: #777; text-align: right }
+@media (max-width: 740px) { .hud { grid-template-columns: repeat(2, minmax(0, 1fr)) } .hud .updated { grid-column: 1/-1; justify-self: start; text-align: left } }
+.alert { position: absolute; left: 14px; top: 14px; background: #fff3cd; border: 1px solid #ffe69c; color: #664d03; padding: 8px 10px; border-radius: 10px; font-size: 12px; display: none }
+.alert b { display: block; margin-bottom: 4px }
+.mascot { position: absolute; left: 0; top: 0; z-index: 40; pointer-events: none; display: none; transition: left .28s cubic-bezier(.2, .8, .2, 1), top .28s cubic-bezier(.2, .8, .2, 1) }
+.mascot img { display: block; width: 110px; height: auto }
+.carry-brick, .fx-brick { position: absolute; width: 26px; height: 14px; background: var(--brick-bg-color); border-radius: 2px; box-shadow: inset 0 0 0 1px #8b6f5c }
+.mascotWrap { display: inline-block }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-4px) rotate(-0.4deg); } }
+@keyframes wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-12deg); } }
 .mascotWrap.idle { animation: bob 3.5s ease-in-out infinite; }
 .mascotWrap .carry-brick { transform-origin: 90% 120%; animation: wave 1.8s ease-in-out infinite; }
-
-/* Tooltip */
-#tip{
-  position:fixed; z-index:10050; display:none;
-  background:#fff; color:#111; border:1px solid #ddd; padding:8px 10px; border-radius:10px;
-  box-shadow:0 8px 24px rgba(0,0,0,.18); max-width:320px; font:14px/1.3 system-ui; white-space:normal;
-}
-#tip .mini{ font-size:12px; color:#666; margin-top:4px }
-
-body.embed{background:transparent}.hud.hidden{display:none}
-
-/* -------- Painel de Controles -------- */
-.fab{position:fixed;right:18px;bottom:18px;z-index:9998;width:54px;height:54px;border-radius:50%;
-  background:#0A4AA6;color:#fff;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 12px 28px rgba(0,0,0,.18);cursor:pointer;font-size:22px}
-.fab:active{transform:scale(.98)}
-.drawer{position:fixed;inset:0 0 0 auto;width:340px;max-width:92vw;background:#fff;border-left:1px solid #eee;box-shadow:-16px 0 40px rgba(0,0,0,.18);
-  transform:translateX(105%);transition:transform .28s ease;z-index:9999;display:flex;flex-direction:column}
-.drawer.open{transform:none}
-.drawer .head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee}
-.drawer .body{padding:12px 16px 18px;overflow:auto}
-.drawer h4{margin:14px 0 8px 0}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.row label{font-size:13px;color:#333}
-select,input[type="text"],input[type="number"]{font:inherit;padding:6px 8px;border:1px solid #ddd;border-radius:8px;background:#fff}
-.switch{appearance:none;width:42px;height:24px;background:#ddd;border-radius:999px;position:relative;outline:none;cursor:pointer}
-.switch:checked{background:#0A4AA6}
-.switch::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:999px;background:#fff;transition:left .18s}
-.switch:checked::after{left:20px}
-.slider{width:100%}
-.btn{padding:8px 12px;border-radius:10px;border:1px solid #ddd;background:#fafafa;cursor:pointer}
-.btn.primary{background:#0A4AA6;color:#fff;border-color:#0A4AA6}
-.small{font-size:12px;color:#666}
-.small.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-.debug-row{opacity:0.7}
+#tip { position: fixed; z-index: 10050; display: none; background: #fff; color: #111; border: 1px solid #ddd; padding: 8px 10px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); max-width: 320px; font: 14px/1.3 system-ui; white-space: normal; }
+#tip .mini { font-size: 12px; color: #666; margin-top: 4px }
+body.embed { background: transparent }
+.hud.hidden { display: none }
+.fab { position: fixed; right: 18px; bottom: 18px; z-index: 9998; width: 54px; height: 54px; border-radius: 50%; background: #0A4AA6; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 28px rgba(0, 0, 0, .18); cursor: pointer; font-size: 22px }
+.fab:active { transform: scale(.98) }
+.drawer { position: fixed; inset: 0 0 0 auto; width: 340px; max-width: 92vw; background: #fff; border-left: 1px solid #eee; box-shadow: -16px 0 40px rgba(0, 0, 0, .18); transform: translateX(105%); transition: transform .28s ease; z-index: 9999; display: flex; flex-direction: column }
+.drawer.open { transform: none }
+.drawer .head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #eee }
+.drawer .body { padding: 12px 16px 18px; overflow: auto }
+.drawer h4 { margin: 14px 0 8px 0 }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.row label { font-size: 13px; color: #333 }
+select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8px; border: 1px solid #ddd; border-radius: 8px; background: #fff }
+.switch { appearance: none; width: 42px; height: 24px; background: #ddd; border-radius: 999px; position: relative; outline: none; cursor: pointer }
+.switch:checked { background: #0A4AA6 }
+.switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 20px; height: 20px; border-radius: 999px; background: #fff; transition: left .18s }
+.switch:checked::after { left: 20px }
+.slider { width: 100% }
+.btn { padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fafafa; cursor: pointer }
+.btn.primary { background: #0A4AA6; color: #fff; border-color: #0A4AA6 }
+.small { font-size: 12px; color: #666 }
+.small.mono { font-family: ui-monospace, Menlo, Consolas, monospace }
+.debug-row { opacity: 0.7 }
 </style>
 </head>
 <body>
-  <div id="debug-console" style="position: fixed; bottom: 0; left: 0; width: 100%; max-height: 25vh; background: rgba(0,0,0,0.8); color: #0f0; font-family: monospace; font-size: 10px; z-index: 99999; padding: 5px; overflow-y: scroll; border-top: 2px solid #333;">
-  <strong>--- CONSOLE DE DEBUG ---</strong><br>
-</div>
-  <div class="panel">
-    <div class="gauge" id="gauge">
-      <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique o arquivo logo.png.</div>
-
-      <img class="ghost-logo" id="ghostLogo" alt="logo" />
-
-      <div class="mascot" id="mascot" aria-hidden="true">
-        <div class="mascotWrap" id="mascotWrap">
-          <img id="mascotImg" src="Tio_Jolinho_tijolo.png" alt="Tio Jolinho">
-          <div class="carry-brick" id="carryBrick" style="left:64px;top:58px"></div>
-        </div>
-      </div>
-
-      <div class="bricks-bg" id="bricksBg"></div>
-      <div class="mask-layer" id="mask"><div class="bricks" id="bricksFg"></div></div>
-    </div>
-
-    <div class="hud" id="hud">
-      <div class="item"><span class="label">Arrecadado</span><span class="value" id="hudRaised">R$ 0,00</span></div>
-      <div class="item"><span class="label" id="hudGoalLabel">Meta</span><span class="value" id="hudGoal">R$ 0,00</span></div>
-      <div class="item"><span class="label">Progresso</span><span class="value pct" id="hudPct">0%</span></div>
-      <div class="updated" id="hudUpdated">—</div>
-    </div>
-  </div>
-
-  <div id="tip"></div>
-
-  <button class="fab" id="fab" title="Opções">⚙️</button>
-  <aside class="drawer" id="drawer" aria-label="Controles do Tijolômetro">
-    <div class="head">
-      <strong>Opções do Tijolômetro</strong>
-      <button class="btn" id="closeDrawer">Fechar</button>
-    </div>
-    <div class="body">
-      <h4>Mascote</h4>
-      <div class="row">
-        <label>Mostrar:</label><input id="optMascotOn" class="switch" type="checkbox" checked>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label>Imagem:</label>
-        <select id="optMascotSrc">
-          <option>Tio_Jolinho_tijolo.png</option>
-          <option>Tio_Jolinho_carrinho.png</option>
-          <option>Tio_Jolinho_martelo.png</option>
-          <option>Sr._Construtino_colher.png</option>
-          <option>Lumininha_trena.png</option>
-        </select>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label>X (%):</label><input id="optMascotX" type="number" min="0" max="100" step="0.5" style="width:84px">
-        <label>Y (%):</label><input id="optMascotY" type="number" min="0" max="100" step="0.5" style="width:84px">
-      </div>
-
-      <h4>Doadores</h4>
-      <div class="row">
-        <label>Tooltip de doadores:</label><input id="optDonorsOn" class="switch" type="checkbox">
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label>Exibir nome:</label>
-        <select id="optNamesMode">
-          <option value="first">Nome curto</option>
-          <option value="full">Nome completo</option>
-          <option value="off">Ocultar</option>
-        </select>
-      </div>
-      <div class="row debug-row" style="margin-top:6px">
-        <span class="small">Aba:</span><span class="small mono" id="dbgSheet">TIJOLO_Respostas</span>
-      </div>
-      <div class="row debug-row" style="margin-top:2px">
-        <span class="small">Cabeçalho:</span><span class="small mono" id="dbgHeader">Texto do tijolo 1 (máx. 40)</span>
-      </div>
-      <div class="row debug-row" style="margin-top:2px">
-        <span class="small">Status doadores:</span><span class="small" id="dbgDonors">—</span>
-      </div>
-
-      <h4>HUD</h4>
-      <div class="row">
-        <label>Exibir painel:</label><input id="optHudOn" class="switch" type="checkbox" checked>
-      </div>
-
-      <h4>Ações</h4>
-      <div class="row">
-        <button class="btn" id="btnRefresh">Atualizar agora</button>
-        <button class="btn" id="btnSimulate">Simular 100%</button>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn primary" id="btnCopyLink">Copiar link com estas opções</button>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn" id="btnReset">Restaurar padrão</button>
-        <span class="small">Preferências são salvas no seu navegador.</span>
-      </div>
-    </div>
-  </aside>
-
-<script>
-(function(){
-  /* ---------- parâmetros e defaults ---------- */
-  const qs=new URLSearchParams(location.search);
-  const DEFAULTS={
-    // Planilha do PAINEL
-    sheetId:'1-_J2DwVSn7LULB55YVPCHQsQ-PRfZYt8oDJhepdXYFY',
-    sheetName:'Tijolometro', range:'A1:D10',
-
-    // Doadores (Forms) — por CABEÇALHO
-    donorsOn:true,
-    donorsSheetId:'1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I',
-    donorsSheet:'TIJOLO_Respostas',
-    donorsHeader:'Texto do tijolo 1 (máx. 40)',
-    donorsRange:'A1:Z10000',
-    namesMode:'first',
-
-    logo:'logo.png', cols:120, rows:72, brickPx:0, targetBricks:0, gap:1,
-    pollMs:30000, pad:0, grout:'', joint:'', ghost:'', palette:'brand3',
-    embed:false, hudOff:false,
-    mascot:true, mascotSrc:'Tio_Jolinho_tijolo.png', respectMotion:false,
-    mascotX:'90%', mascotY:'75%',
-    brickScale:1.0  // FIXO: escala visual em 100%
-  };
-
-  function loadSaved(){ try{ return JSON.parse(localStorage.getItem('tj:settings')||'{}'); }catch{return{}} }
-  const SAVED=loadSaved();
-
-  // merge: URL > saved > defaults
-  const CONFIG={...DEFAULTS,...SAVED,
-    ...Object.fromEntries([...qs.entries()].map(([k,v])=>{
-      if(['brick_px','cols','rows','gap','poll_ms','pad','target_bricks'].includes(k)) return [toKey(k), +v];
-      if(['brick_scale'].includes(k)) return [toKey(k), +v];
-      if(['donors','embed','hud','mascot','respect_motion'].includes(k)) return [toKey(k), v==='1'];
-      if(['mascot_x','mascot_y'].includes(k)) return [toKey(k), v];
-      return [toKey(k), v];
-    }))
-  };
-  
-  // Força as configurações fixas para não serem sobrescritas
-  CONFIG.palette = 'brand3';
-  CONFIG.brickScale = 1.0;
-  
-  function toKey(k){return ({
-    'sheet_id':'sheetId','sheet':'sheetName','range':'range',
-    'donors':'donorsOn','donors_sheet':'donorsSheet','donors_range':'donorsRange','donors_sheet_id':'donorsSheetId','donors_header':'donorsHeader','names':'namesMode',
-    'logo':'logo','cols':'cols','rows':'rows','brick_px':'brickPx','gap':'gap','poll_ms':'pollMs','pad':'pad','palette':'palette',
-    'embed':'embed','hud':'hudOn','target_bricks':'targetBricks','mascot':'mascot','mascot_src':'mascotSrc','respect_motion':'respectMotion',
-    'mascot_x':'mascotX','mascot_y':'mascotY','brick_scale':'brickScale'
-  }[k]||k)}
-
-  // aplicar variáveis de estilo opcionais
-  if (CONFIG.pad) document.documentElement.style.setProperty('--pad', CONFIG.pad+'px');
-  if (CONFIG.grout) document.documentElement.style.setProperty('--grout', CONFIG.grout);
-  if (CONFIG.joint) document.documentElement.style.setProperty('--joint', CONFIG.joint+'px');
-  if (CONFIG.ghost) document.documentElement.style.setProperty('--ghost', CONFIG.ghost);
-  if (CONFIG.embed) document.body.classList.add('embed');
-
-  /* ---------- elementos ---------- */
-  const gauge=document.getElementById('gauge'), maskEl=document.getElementById('mask'),
-        ghostEl=document.getElementById('ghostLogo'), bricksFgEl=document.getElementById('bricksFg'),
-        bricksBgEl=document.getElementById('bricksBg'), alertBox=document.getElementById('logoAlert');
-  const hud={raised:document.getElementById('hudRaised'),goal:document.getElementById('hudGoal'),
-             pct:document.getElementById('hudPct'),updated:document.getElementById('hudUpdated'),
-             goalLabel:document.getElementById('hudGoalLabel'), box:document.getElementById('hud')};
-  const mascotBox=document.getElementById('mascot'), mascotImg=document.getElementById('mascotImg'), mascotWrap=document.getElementById('mascotWrap');
-  const tip=document.getElementById('tip');
-
-  // controls
-  const fab=document.getElementById('fab'), drawer=document.getElementById('drawer'),
-        closeDrawer=document.getElementById('closeDrawer'),
-        optMascotOn=document.getElementById('optMascotOn'),
-        optMascotSrc=document.getElementById('optMascotSrc'),
-        optMascotX=document.getElementById('optMascotX'),
-        optMascotY=document.getElementById('optMascotY'),
-        optDonorsOn=document.getElementById('optDonorsOn'),
-        optNamesMode=document.getElementById('optNamesMode'),
-        optHudOn=document.getElementById('optHudOn'),
-        btnRefresh=document.getElementById('btnRefresh'),
-        btnSimulate=document.getElementById('btnSimulate'),
-        btnCopyLink=document.getElementById('btnCopyLink'),
-        btnReset=document.getElementById('btnReset'),
-        dbgDonors=document.getElementById('dbgDonors'),
-        dbgSheet=document.getElementById('dbgSheet'),
-        dbgHeader=document.getElementById('dbgHeader');
-
-  dbgSheet.textContent = CONFIG.donorsSheet;
-  dbgHeader.textContent = CONFIG.donorsHeader;
-
-  /* ---------- estado de desenho ---------- */
-  const paintCanvas=document.createElement('canvas');
-  const pctx=paintCanvas.getContext('2d',{willReadFrequently:true});
-  let logoImg=null,aspectSet=false,bricksFg=[],bricksBg=[],effCols,effRows,lastProgress=0,lastFilled=0,donors=[];
-  let firstApplyDone=false; // para tirar animações no primeiro paint
-  let lastGoalValue=0, lastRaisedValue=0; // para simulação visual
-
-  function setMaskImage(url){ maskEl.style.setProperty('--mask', `url('${url}')`); }
-  function formatBRL(n){ try{return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(n);}catch{return 'R$ '+Number(n||0).toLocaleString('pt-BR');} }
-  function tweenNumber(el,to,fmt,ms=600){ const from=Number((el.textContent||'0').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;
-    const t0=performance.now(); (function f(t){const k=Math.min(1,(t-t0)/ms);el.textContent=fmt(from+(to-from)*k); if(k<1)requestAnimationFrame(f)})(t0); }
-  function firstName(n){ if(!n) return ''; const p=n.trim().split(/\s+/); return p[0]+(p[1]?' '+p[1][0]+'.':''); }
-  function formatName(n){ if(CONFIG.namesMode==='off') return ''; if(CONFIG.namesMode==='full') return n||''; return firstName(n||''); }
-
-  function loadLogo(src){ return new Promise(res=>{ const im=new Image();
-    im.onload=()=>{logoImg=im;ghostEl.src=im.src;setMaskImage(im.src);alertBox.style.display='none';res(true)};
-    im.onerror=()=>{alertBox.style.display='block';res(false)};
-    im.src=src+(src.includes('?')?'&':'?')+'t='+Date.now();
-  })}
-
-  function ensureAspectFromLogo(){ if(aspectSet||!logoImg) return; const ar=logoImg.naturalWidth/logoImg.naturalHeight; if(ar>0) gauge.style.aspectRatio=`${ar} / 1`; aspectSet=true; }
-
-  const PALETTES={brand2:['#0A4AA6','#F2C035'],brand3:['#0A4AA6','#F2C035','#8B1E1E']};
-  const hexToRgb=h=>{const n=parseInt(h.replace('#',''),16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}};
-  const dist2=(c1,c2)=>{const dr=c1.r-c2.r,dg=c1.g-c2.g,db=c1.b-c2.b;return dr*dr+dg*dg+db*db};
-  function mapToPalette(r,g,b,name){const set=PALETTES[name];if(!set)return`rgb(${r},${g},${b})`;let best=set[0],bestD=Infinity,c1={r,g,b};
-    for(const h of set){const c2=hexToRgb(h);const d=dist2(c1,c2);if(d<bestD){bestD=d;best=h}}return best}
-  const makeSampler=(data,W,H)=>(x,y)=>{const xi=Math.max(0,Math.min(W-1,Math.round(x))), yi=Math.max(0,Math.min(H-1,Math.round(y))), i=(yi*W+xi)*4; return [data[i],data[i+1],data[i+2],data[i+3]]};
-  const median=a=>{const b=a.slice().sort((m,n)=>m-n);return b[Math.floor(b.length/2)]};
-  function darkenHex(hex, amt=0.15){
-    const c = hexToRgb(hex);
-    const k = Math.max(0, Math.min(1, 1-amt));
-    return `rgb(${Math.round(c.r*k)},${Math.round(c.g*k)},${Math.round(c.b*k)})`;
-  }
-
-// Colorize com muro de fundo forte e logo destacado
-  function colorizeBricks(){
-    if(!logoImg) return; const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
-    paintCanvas.width=W;paintCanvas.height=H;pctx.clearRect(0,0,W,H);
-    const ar=logoImg.naturalWidth/logoImg.naturalHeight;let dw=W,dh=W/ar;if(dh>H){dh=H;dw=H*ar}
-    const dx=(W-dw)/2,dy=(H-dh)/2;pctx.drawImage(logoImg,dx,dy,dw,dh);
-    const buf=pctx.getImageData(0,0,W,H).data;const samp=makeSampler(buf,W,H);
-    const baseHex = getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim() || '#a35a41';
-    for(let i=0;i<bricksFg.length;i++){
-      const bFg=bricksFg[i],bBg=bricksBg[i];const x=bFg._x,y=bFg._y,w=bFg._w,h=bFg._h;
-      const pts=[[x+w/2,y+h/2],[x+1,y+1],[x+w-2,y+1],[x+1,y+h-2],[x+w-2,y+h-2],[x+w/2,y+1],[x+w/2,y+h-2],[x+1,y+h/2],[x+w-2,y+h/2]];
-      const rs=[],gs=[],bs=[],as=[];for(const [px,py] of pts){const d=samp(px,py);rs.push(d[0]);gs.push(d[1]);bs.push(d[2]);as.push(d[3])}
-       const A=median(as);const fg=bFg.querySelector('.fill'), bg=bBg.querySelector('.fill');
-// =============== INÍCIO DO CÓDIGO DE DEBUG (VERSÃO COM MIRA) ===============
-if (i % 200 === 0) { // Inspeciona 1 a cada 200 tijolos
-    const debugConsole = document.getElementById('debug-console');
-    if (debugConsole) {
-        // --- NOVIDADE: PINTANDO A BORDA DO TIJOLO ALVO ---
-        const tijoloInspecionado = bricksFg[i];
-        if (tijoloInspecionado) {
-            tijoloInspecionado.style.outline = '1px solid red';
-            tijoloInspecionado.style.outlineOffset = '-1px';
-        }
-        // --- FIM DA NOVIDADE ---
-
-        const r = median(rs), g = median(gs), b = median(bs);
-        const corMapeada = mapToPalette(r, g, b, CONFIG.palette);
-        const A_max = Math.max.apply(null, as);
-        const estaDentro = A_max >= 20;
-
-        let output = `------------------------------------<br>`;
-        output += `<b>TIJOLO VERMELHO (Índice: ${i})</b><br>`; // Adicionado um título para fácil identificação
-        output += `XY: ${Math.round(x)}, ${Math.round(y)} | `;
-        output += `A_max: ${A_max} | Dentro?: ${estaDentro}<br>`;
-        output += `Cor (RGB): ${r}, ${g}, ${b} | `;
-        output += `Paleta: ${corMapeada}<br>`;
-        
-        // Adiciona a nova mensagem no topo do console, para ficar mais fácil de ver
-        debugConsole.innerHTML = output + debugConsole.innerHTML;
-    }
-}
-// =============== FIM DO CÓDIGO DE DEBUG (VERSÃO COM MIRA) ===============
-      // MUDANÇA DRASTICA: Agora, apenas pixels 100% transparentes serão considerados "fundo".
-      if (A === 0) {
-        // FORA do logo (muro de fundo): tijolo forte e visível (camada de fundo)
-        fg.style.background = 'transparent';
-        const base = hexToRgb(baseHex);
-        bg.style.background = `rgb(${base.r},${base.g},${base.b})`;
-        bg.style.opacity = '1';
-      } else {
-        // DENTRO do logo: usar a cor da paleta (mapeada do logo) com um leve “boost” de contraste
-        const r=median(rs),g=median(gs),b=median(bs);
-        const pc = mapToPalette(r,g,b,CONFIG.palette);
-        fg.style.background = darkenHex(pc, 0.15); // 15% mais “vivo”
-        bg.style.opacity='0';
-      }
-    }
-  }
-
-  let _orderFg=[],_orderBg=[];
-  function buildOrder(rows,cols){const of=[],ob=[];for(let r=rows-1;r>=0;r--){for(let c=0;c<cols;c++){const i=r*cols+c;of.push(bricksFg[i]);ob.push(bricksBg[i])}} _orderFg=of;_orderBg=ob; assignDonorsToBricks(); }
-
-  function layoutBricks(){
-    ensureAspectFromLogo(); const W=bricksFgEl.clientWidth,H=bricksFgEl.clientHeight;if(!W||!H) return;
-
-    if(CONFIG.targetBricks>0){
-      const ar=W/H;
-      const rows=Math.max(12,Math.round(Math.sqrt(CONFIG.targetBricks/(ar*1.0))));
-      const cols=Math.max(20,Math.round(rows*ar));
-      effCols=cols;effRows=rows;
-    }
-    const cols=(typeof effCols==='number'&&effCols>0)?effCols:CONFIG.cols;
-    const rows=(typeof effRows==='number'&&effRows>0)?effRows:CONFIG.rows;
-
-    const gap=CONFIG.gap; let brickW=Math.floor((W-(cols+1)*gap)/cols); if(brickW<2)brickW=2;
-    let offset=Math.floor(brickW/2); let gridWEven=cols*brickW+(cols+1)*gap; let gridWOdd=gridWEven+offset;
-    if(gridWOdd>W){const extra=gridWOdd-W;const reduce=Math.ceil(extra/cols);brickW=Math.max(2,brickW-reduce);offset=Math.floor(brickW/2);gridWEven=cols*brickW+(cols+1)*gap;gridWOdd=gridWEven+offset}
-    const brickH=Math.max(2,Math.floor((H-(rows+1)*gap)/rows));
-    const gridWMax=Math.max(gridWEven,gridWOdd);
-    const startXBase=Math.max(gap,Math.floor((W-gridWMax)/2)+gap);
-
-    const total=rows*cols;
-    if(bricksFg.length!==total){
-      bricksFgEl.innerHTML='';bricksBgEl.innerHTML='';bricksFg=[];bricksBg=[];
-      const fragFg=document.createDocumentFragment(),fragBg=document.createDocumentFragment();
-      for(let i=0;i<total;i++){
-        const f=document.createElement('div'); f.className='brick'; f.dataset.idx=i;
-        const ffill=document.createElement('div'); ffill.className='fill'; f.appendChild(ffill);
-        fragFg.appendChild(f); bricksFg.push(f);
-        const b=document.createElement('div'); b.className='brick';
-        const bfill=document.createElement('div'); bfill.className='fill'; b.appendChild(bfill);
-        fragBg.appendChild(b); bricksBg.push(b);
-      }
-      bricksFgEl.appendChild(fragFg); bricksBgEl.appendChild(fragBg);
-    }
-
-    const scale = Math.max(0.6, Math.min(1.0, CONFIG.brickScale||1.0));
-    let idx=0;
-    for(let r=0;r<rows;r++){
-      const startX=startXBase+(r%2?offset:0);
-      for(let c=0;c<cols;c++){
-        const x=startX+c*(brickW+gap),y=gap+r*(brickH+gap);
-        const F=bricksFg[idx]; F.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`; F._x=x;F._y=y;F._w=brickW;F._h=brickH;
-        const B=bricksBg[idx]; B.style.cssText=`left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
-        idx++;
-      }
-    }
-
-    buildOrder(rows,cols);
-    colorizeBricks();
-    applyProgress(lastProgress, /*skipThrow*/ true);
-    if(CONFIG.mascot) setMascotByAnchor();
-  }
-
-  function applyProgress(p, skipThrow){
-    p=Math.max(0,Math.min(1,p||0)); lastProgress=p;
-
-    if(!firstApplyDone){ document.body.classList.add('no-anim'); }
-
-    const of=_orderFg,ob=_orderBg,total=of.length; if(!total) return;
-    const filled=Math.floor(p*total), frac=(p*total)-filled;
-    for(let i=0;i<total;i++){
-      const fF=of[i].querySelector('.fill'), fB=ob[i].querySelector('.fill');
-      of[i].classList.remove('filled','partial'); fF.style.width='0%';
-      ob[i].classList.remove('filled','partial'); fB.style.width='0%';
-      if(i<filled){ of[i].classList.add('filled'); fF.style.width='100%'; ob[i].classList.add('filled'); fB.style.width='100%'; }
-    }
-    if(filled<total){
-      const fF=of[filled].querySelector('.fill'), fB=ob[filled].querySelector('.fill');
-      const percent=Math.round(frac*100)+'%';
-      of[filled].classList.add('partial'); fF.style.width=percent;
-      ob[filled].classList.add('partial'); fB.style.width=percent;
-    }
-
-    if(!firstApplyDone){
-      firstApplyDone=true;
-      requestAnimationFrame(()=> document.body.classList.remove('no-anim'));
-    }
-
-    if (!skipThrow && CONFIG.mascot && filled > lastFilled){
-      throwBrickTo(of[filled-1]||of[0]);
-      lastFilled=filled;
-    }
-  }
-
-  function setMascotByAnchor(){
-    if(!CONFIG.mascot){ mascotBox.style.display='none'; return; }
-    if(CONFIG.respectMotion && matchMedia('(prefers-reduced-motion: reduce)').matches){ mascotBox.style.display='none'; return; }
-    mascotImg.src=CONFIG.mascotSrc;
-    mascotBox.style.display='block';
-    mascotWrap.classList.add('idle');
-
-    const gR=gauge.getBoundingClientRect();
-    const xp = String(CONFIG.mascotX ?? '').toLowerCase().includes('%')
-      ? (parseFloat(CONFIG.mascotX)/100)*gR.width
-      : parseFloat(CONFIG.mascotX||0);
-    const yp = String(CONFIG.mascotY ?? '').toLowerCase().includes('%')
-      ? (parseFloat(CONFIG.mascotY)/100)*gR.height
-      : parseFloat(CONFIG.mascotY||0);
-    const x = Math.round(xp - 55);
-    const y = Math.round(yp - 60);
-    mascotBox.style.left = x + 'px';
-    mascotBox.style.top  = y + 'px';
-  }
-
-  let __throwLock = false;
-  function throwBrickTo(brick){
-    if(!brick || !firstApplyDone || __throwLock) return;
-    __throwLock = true;
-    const fx=document.createElement('div'); fx.className='fx-brick'; gauge.appendChild(fx);
-    const gR=gauge.getBoundingClientRect(), bR=brick.getBoundingClientRect(), mR=mascotBox.getBoundingClientRect();
-    const sx=mR.left-gR.left+76, sy=mR.top-gR.top+78;
-    const tx=bR.left-gR.left + bR.width/2 -13, ty=bR.top-gR.top + bR.height/2 -7;
-    fx.style.left=sx+'px'; fx.style.top=sy+'px';
-    fx.style.transition='transform 1.3s cubic-bezier(.2,.7,.2,1), opacity 1.3s';
-    fx.style.transform = 'translate(0,0) scale(0.9)';
-    requestAnimationFrame(()=>{
-      fx.style.transform=`translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.02)`;
-      fx.style.opacity='1';
-    });
-    setTimeout(()=>{
-      fx.style.opacity='0';
-      setTimeout(()=>{ fx.remove(); __throwLock = false; }, 320);
-    }, 1300);
-  }
-
-  function assignDonorsToBricks(){
-    const of=_orderFg;
-    for(let i=0;i<of.length;i++){ of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
-  }
-
-  let tipTimer=null;
-  bricksFgEl.addEventListener('click', onBrickTap, {passive:true});
-  bricksFgEl.addEventListener('touchstart', onBrickTap, {passive:true});
-  function onBrickTap(e){
-    const brick=e.target.closest('.brick'); if(!brick||!bricksFgEl.contains(brick)) return;
-    const donor=brick._donor;
-    const r=brick.getBoundingClientRect();
-
-    const hasDonor = !!(CONFIG.donorsOn && donor);
-    const showPersonal = hasDonor && CONFIG.namesMode !== 'off';
-
-    let displayName = '';
-    if (showPersonal && donor.name) {
-      displayName = (CONFIG.namesMode === 'full') ? (donor.name || '') : firstName(donor.name || '');
-    }
-    const donorTitle = showPersonal && displayName
-      ? `<b>${displayName}</b>`
-      : `<b>Obrigado!</b>`;
-
-    const showMsg = showPersonal && donor && donor.msg;
-
-    const html = showMsg
-      ? `${donorTitle}<div>${donor.msg}</div><div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Cada tijolo conta 💛'}</div>`
-      : `${donorTitle}<div class="mini">Cada tijolo conta 💛</div>`;
-
-    tip.innerHTML=html; tip.style.display='block';
-    const left=Math.min(Math.max(8,r.left+r.width/2), innerWidth-320); const top=Math.max(8,r.top-12);
-    tip.style.left=left+'px'; tip.style.top=top+'px';
-    clearTimeout(tipTimer); tipTimer=setTimeout(()=> tip.style.display='none', 3000);
-    if(CONFIG.mascot){ setMascotByAnchor(); throwBrickTo(brick); }
-  }
-
-  function parseDateCell(cell){
-    let v=(cell&&typeof cell==='object'&&'v'in cell)?cell.v:cell;
-    if(v&&typeof v==='object'){ if('f'in v&&typeof v.f==='string')return parseDateCell(v.f); if('v'in v) return parseDateCell(v.v); }
-    if(!v) return null;
-    if(typeof v==='string'){
-      const gv=v.match(/Date\((\d+),\s*(\d+),\s*(\d+)/i); if(gv) return new Date(+gv[1],+gv[2],+gv[3]);
-      const iso=v.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/); if(iso) return new Date(+iso[1],+iso[2]-1,+iso[3]);
-      const br=v.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/); if(br){const d=+br[1],m=+br[2],y=+br[3]<100?2000+ +br[3]:+br[3];return new Date(y,m-1,d)}
-      return null;
-    }
-    if(typeof v==='number'){const base=Date.UTC(1899,11,30);return new Date(base+v*86400*1000)}
-    return null;
-  }
-
-  async function fetchProgress(){
-    const base=`https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
-    const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.sheetName,range:CONFIG.range,t:Date.now()+''});
-    try{
-      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
-      if (!m || !m[1]) { throw new Error('Invalid Gviz response format'); }
-      const data=JSON.parse(m[1]); const rows=data?.table?.rows||[];
-      let raised=0; const campaigns=[];
-      for(const r of rows){
-        const label=r.c?.[0]?.v?.toString().trim(); if(!label) continue;
-        const value=Number(r.c?.[1]?.v || r.c?.[1]?.f || 0);
-        if(label.toLowerCase()==='arrecadado'){ raised=Number(value||0); continue; }
-        const start=parseDateCell(r.c?.[2]); const end=parseDateCell(r.c?.[3]);
-        campaigns.push({label,goal:Number(value||0),start,end});
-      }
-      const today=new Date(); today.setHours(0,0,0,0);
-      let active=campaigns.find(c=>c.start&&c.end&&today>=c.start&&today<=c.end);
-      if(!active) active=campaigns.find(c=>c.goal>0) || {label:'Meta',goal:0};
-      const goal=Number(active.goal||0);
-      const pRaw=goal>0 ? (raised/goal) : 0; const p=Math.max(0,Math.min(1,pRaw));
-
-      lastGoalValue = goal;
-      lastRaisedValue = raised;
-
-      applyProgress(p);
-      tweenNumber(hud.raised, raised, n=>formatBRL(n)); tweenNumber(hud.goal, goal, n=>formatBRL(n));
-      hud.goalLabel.textContent=active.label||'Meta';
-      hud.pct.textContent=(pRaw*100).toFixed(1).replace('.',',')+'%';
-      hud.updated.textContent='Atualizado em '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-
-      try{localStorage.setItem('tj:last',JSON.stringify({p,raised,goal,ts:Date.now()}));}catch{}
-      return {ok:true, raised, goal, p};
-    }catch(e){
-      console.error('Erro ao buscar planilha:',e);
-      const last=localStorage.getItem('tj:last'); if(last){ const {p,raised,goal,ts}=JSON.parse(last);
-        applyProgress(p); hud.raised.textContent=formatBRL(raised); hud.goal.textContent=formatBRL(goal);
-        hud.pct.textContent=(p*100).toFixed(1).replace('.',',')+'%'; hud.updated.textContent='Offline — último: '+new Date(ts).toLocaleString('pt-BR');
-      }else if(hud.updated.textContent==='—'){ hud.updated.textContent='(Erro na planilha)' }
-      return {ok:false};
-    }
-  }
-
-  const canon = s => (s||'').toString().toLowerCase()
-                         .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-                         .replace(/[^a-z0-9]+/g,' ').trim();
-
-  async function fetchDonors(){
-    if(!CONFIG.donorsOn) {donors=[]; assignDonorsToBricks(); dbgDonors.textContent='desligado'; return;}
-    try{
-      const base=`https://docs.google.com/spreadsheets/d/${(CONFIG.donorsSheetId||CONFIG.sheetId)}/gviz/tq`;
-      const params=new URLSearchParams({tqx:'out:json',sheet:CONFIG.donorsSheet,range:CONFIG.donorsRange,t:Date.now()+''});
-      const res=await fetch(`${base}?${params}`,{cache:'no-store'}); 
-      const txt=await res.text();
-      const m=txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s); 
-      if (!m || !m[1]) { throw new Error('Invalid Gviz response format'); }
-      const data=JSON.parse(m[1]);
-      const cols=(data?.table?.cols||[]).map(c => (c.label||'').toString());
-      const rows=data?.table?.rows||[];
-
-      let header = cols;
-      let headerFromRow = false;
-
-      if (!header.some(h => (h||'').trim().length)){
-        const r0 = rows[0];
-        if (r0 && r0.c){
-          header = r0.c.map(c => (c?.v ?? c?.f ?? '').toString());
-          headerFromRow = true;
-        }
-      }
-
-      const wanted = canon(CONFIG.donorsHeader);
-      const headerCanon = header.map(canon);
-
-      let colIdx = headerCanon.findIndex(h => h === wanted);
-      if (colIdx === -1) colIdx = headerCanon.findIndex(h => h.includes(wanted) || wanted.includes(h));
-
-      const nameCandidates = ['nome','nome completo','name'];
-      let nameIdx = headerCanon.findIndex(hc =>
-        nameCandidates.some(cand => hc === cand || hc.startsWith(cand + ' '))
-      );
-      if (nameIdx === -1) {
-        nameIdx = headerCanon.findIndex(hc =>
-          /\b(nome|name)\b/.test(hc) && !/\b(email|e[- ]?mail|telefone|celular|whats|whatsapp)\b/.test(hc)
-        );
-      }
-      if (nameIdx < 0) nameIdx = -1;
-
-      if (colIdx === -1){
-        donors=[];
-        dbgDonors.textContent='cabeçalho não encontrado';
-      }else{
-        const startIdx = headerFromRow ? 1 : 0;
-        const out=[];
-        for (let i=startIdx;i<rows.length;i++){
-          const r = rows[i]; if(!r || !r.c) continue;
-          const cell = r.c[colIdx];
-          const v = (cell?.v ?? cell?.f ?? '').toString().trim();
-          if (v){
-            let name = '';
-            if (nameIdx >= 0 && r.c[nameIdx]){
-              name = (r.c[nameIdx]?.v ?? r.c[nameIdx]?.f ?? '').toString().trim();
-            }
-            name = (name || '').replace(/\s+/g,' ').trim();
-            out.push({ name, msg: v, value: 0 });
-          }
-        }
-        donors = out;
-        dbgDonors.textContent = 'carregados: ' + donors.length;
-      }
-
-      assignDonorsToBricks();
-      return {ok:true, count: donors.length};
-    }catch(e){
-      console.warn('Doadores: falha ao ler',e);
-      donors=[]; assignDonorsToBricks();
-      dbgDonors.textContent='erro/permissão';
-      return {ok:false};
-    }
-  }
-
-  /* ---------- Controles (UI) ---------- */
-  function syncControls(){
-    optMascotOn.checked = CONFIG.mascot;
-    optMascotSrc.value = CONFIG.mascotSrc;
-    optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%','')) || 90;
-    optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%','')) || 75;
-    optDonorsOn.checked = CONFIG.donorsOn;
-    optNamesMode.value = CONFIG.namesMode;
-    optHudOn.checked = !CONFIG.hudOff;
-  }
-  function saveSettings(){ const copy={...CONFIG}; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
-  function applySettings(){
-    CONFIG.mascot = optMascotOn.checked;
-    CONFIG.mascotSrc = optMascotSrc.value;
-    CONFIG.mascotX = (optMascotX.value==='' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%')?'':'%');
-    CONFIG.mascotY = (optMascotY.value==='' ? '75'  : optMascotY.value) + (String(optMascotY.value).includes('%')?'':'%');
-    CONFIG.donorsOn = optDonorsOn.checked;
-    CONFIG.namesMode = optNamesMode.value;
-    CONFIG.hudOff = !optHudOn.checked;
-
-    effCols = undefined; effRows = undefined;
-
-    if(CONFIG.hudOff) hud.box.classList.add('hidden'); else hud.box.classList.remove('hidden');
-
-    setMascotByAnchor();
-    colorizeBricks();
-    layoutBricks();
-    fetchDonors();
-    saveSettings();
-  }
-  optMascotOn.onchange = applySettings;
-  optMascotSrc.onchange = applySettings;
-  optMascotX.oninput = ()=>{ applySettings(); };
-  optMascotY.oninput = ()=>{ applySettings(); };
-  optDonorsOn.onchange = ()=>{ applySettings(); };
-  optNamesMode.onchange = applySettings;
-  optHudOn.onchange = applySettings;
-
-  let pollId = null;
-  function startPolling() {
-    if (pollId) clearInterval(pollId);
-    pollId = setInterval(fetchProgress, CONFIG.pollMs);
-  }
-
-  btnRefresh.onclick = ()=> {
-    fetchProgress().then(()=>{
-      btnRefresh.textContent = 'Atualizado ✔';
-      setTimeout(()=> btnRefresh.textContent='Atualizar agora', 1200);
-    });
-    fetchDonors();
-  };
-
-  btnSimulate.onclick = ()=> {
-    if (pollId) { clearInterval(pollId); pollId = null; }
-    const p = 1;
-    applyProgress(p);
-    if (lastGoalValue && lastGoalValue > 0) {
-      hud.pct.textContent = '100,0%';
-      tweenNumber(hud.raised, lastGoalValue, n=>formatBRL(n));
-    } else {
-      hud.pct.textContent = '100,0%';
-    }
-    setTimeout(()=> startPolling(), 6000);
-  };
-
-  btnCopyLink.onclick = ()=>{
-    const u=new URL(location.href);
-    const params=new URLSearchParams();
-    // Apenas copia parâmetros que ainda são customizáveis
-    if(CONFIG.donorsOn) params.set('donors','1');
-    if(CONFIG.namesMode!==DEFAULTS.namesMode) params.set('names',CONFIG.namesMode);
-    if(CONFIG.hudOff) params.set('hud','0');
-    if(CONFIG.donorsSheetId!==DEFAULTS.donorsSheetId) params.set('donors_sheet_id', CONFIG.donorsSheetId);
-    if(CONFIG.donorsSheet!==DEFAULTS.donorsSheet)   params.set('donors_sheet', CONFIG.donorsSheet);
-    if(CONFIG.donorsHeader!==DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
-    if (CONFIG.mascotX !== DEFAULTS.mascotX) params.set('mascot_x', CONFIG.mascotX);
-    if (CONFIG.mascotY !== DEFAULTS.mascotY) params.set('mascot_y', CONFIG.mascotY);
-    u.search = params.toString();
-    navigator.clipboard.writeText(u.toString()).then(()=>{btnCopyLink.textContent='Link copiado!';setTimeout(()=>btnCopyLink.textContent='Copiar link com estas opções',1800)});
-  };
-  btnReset.onclick = ()=>{
-    Object.assign(CONFIG, DEFAULTS);
-    syncControls(); applySettings();
-  };
-
-  fab.onclick = ()=> drawer.classList.add('open');
-  closeDrawer.onclick = ()=> drawer.classList.remove('open');
-
-  if (qs.get('debug') !== '1') {
-    document.querySelectorAll('.debug-row').forEach(el => el.style.display='none');
-  }
-
-  /* ---------- inicialização ---------- */
-  document.body.classList.add('no-anim');
-
-  syncControls();
-  if(CONFIG.hudOff) hud.box.classList.add('hidden');
-
-  const ro=new ResizeObserver(()=>{ layoutBricks(); if(CONFIG.mascot) setMascotByAnchor(); }); ro.observe(gauge);
-  window.addEventListener('orientationchange',()=>setTimeout(layoutBricks,150));
-
-  loadLogo(CONFIG.logo).then(()=>{ensureAspectFromLogo(); layoutBricks(); setMascotByAnchor();});
-  fetchDonors();
-  fetchProgress().then(()=> startPolling());
-})();
-</script>
+  <div class="panel">
+    <div class="gauge" id="gauge">
+      <div class="alert" id="logoAlert"><b>Logo não carregou</b> — verifique o arquivo logo.png.</div>
+      <img class="ghost-logo" id="ghostLogo" alt="logo" />
+      <div class="mascot" id="mascot" aria-hidden="true">
+        <div class="mascotWrap" id="mascotWrap">
+          <img id="mascotImg" src="Tio_Jolinho_tijolo.png" alt="Tio Jolinho">
+          <div class="carry-brick" id="carryBrick" style="left:64px;top:58px"></div>
+        </div>
+      </div>
+      <div class="bricks-bg" id="bricksBg"></div>
+      <div class="mask-layer" id="mask">
+        <div class="bricks" id="bricksFg"></div>
+      </div>
+    </div>
+    <div class="hud" id="hud">
+      <div class="item"><span class="label">Arrecadado</span><span class="value" id="hudRaised">R$ 0,00</span></div>
+      <div class="item"><span class="label" id="hudGoalLabel">Meta</span><span class="value" id="hudGoal">R$ 0,00</span></div>
+      <div class="item"><span class="label">Progresso</span><span class="value pct" id="hudPct">0%</span></div>
+      <div class="updated" id="hudUpdated">—</div>
+    </div>
+  </div>
+  <div id="tip"></div>
+  <button class="fab" id="fab" title="Opções">⚙️</button>
+  <aside class="drawer" id="drawer" aria-label="Controles do Tijolômetro">
+    <div class="head">
+      <strong>Opções do Tijolômetro</strong>
+      <button class="btn" id="closeDrawer">Fechar</button>
+    </div>
+    <div class="body">
+      <h4>Mascote</h4>
+      <div class="row">
+        <label>Mostrar:</label><input id="optMascotOn" class="switch" type="checkbox" checked>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>Imagem:</label>
+        <select id="optMascotSrc">
+          <option>Tio_Jolinho_tijolo.png</option>
+          <option>Tio_Jolinho_carrinho.png</option>
+          <option>Tio_Jolinho_martelo.png</option>
+          <option>Sr._Construtino_colher.png</option>
+          <option>Lumininha_trena.png</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>X (%):</label><input id="optMascotX" type="number" min="0" max="100" step="0.5" style="width:84px">
+        <label>Y (%):</label><input id="optMascotY" type="number" min="0" max="100" step="0.5" style="width:84px">
+      </div>
+      <h4>Doadores</h4>
+      <div class="row">
+        <label>Tooltip de doadores:</label><input id="optDonorsOn" class="switch" type="checkbox">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>Exibir nome:</label>
+        <select id="optNamesMode">
+          <option value="first">Nome curto</option>
+          <option value="full">Nome completo</option>
+          <option value="off">Ocultar</option>
+        </select>
+      </div>
+      <div class="row debug-row" style="margin-top:6px">
+        <span class="small">Aba:</span><span class="small mono" id="dbgSheet">TIJOLO_Respostas</span>
+      </div>
+      <div class="row debug-row" style="margin-top:2px">
+        <span class="small">Cabeçalho:</span><span class="small mono" id="dbgHeader">Texto do tijolo 1 (máx. 40)</span>
+      </div>
+      <div class="row debug-row" style="margin-top:2px">
+        <span class="small">Status doadores:</span><span class="small" id="dbgDonors">—</span>
+      </div>
+      <h4>HUD</h4>
+      <div class="row">
+        <label>Exibir painel:</label><input id="optHudOn" class="switch" type="checkbox" checked>
+      </div>
+      <h4>Ações</h4>
+      <div class="row">
+        <button class="btn" id="btnRefresh">Atualizar agora</button>
+        <button class="btn" id="btnSimulate">Simular 100%</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="btnCopyLink">Copiar link com estas opções</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="btnReset">Restaurar padrão</button>
+        <span class="small">Preferências são salvas no seu navegador.</span>
+      </div>
+    </div>
+  </aside>
+  <script>
+  (function() {
+    /* ---------- parâmetros e defaults ---------- */
+    const qs = new URLSearchParams(location.search);
+    const DEFAULTS = {
+      sheetId: '1-_J2DwVSn7LULB55YVPCHQsQ-PRfZYt8oDJhepdXYFY',
+      sheetName: 'Tijolometro',
+      range: 'A1:D10',
+      donorsOn: true,
+      donorsSheetId: '1CbyqJL0lpYAzxBXRw9dvUh5DHh50imJOw5AUjVALy8I',
+      donorsSheet: 'TIJOLO_Respostas',
+      donorsHeader: 'Texto do tijolo 1 (máx. 40)',
+      donorsRange: 'A1:Z10000',
+      namesMode: 'first',
+      logo: 'logo.png',
+      cols: 120,
+      rows: 72,
+      brickPx: 0,
+      targetBricks: 0,
+      gap: 1,
+      pollMs: 30000,
+      pad: 0,
+      grout: '',
+      joint: '',
+      ghost: '',
+      palette: 'brand3',
+      embed: false,
+      hudOff: false,
+      mascot: true,
+      mascotSrc: 'Tio_Jolinho_tijolo.png',
+      respectMotion: false,
+      mascotX: '90%',
+      mascotY: '75%',
+      brickScale: 1.0
+    };
+
+    function loadSaved() { try { return JSON.parse(localStorage.getItem('tj:settings') || '{}'); } catch { return {} } }
+    const SAVED = loadSaved();
+    const CONFIG = {
+      ...DEFAULTS,
+      ...SAVED,
+      ...Object.fromEntries([...qs.entries()].map(([k, v]) => {
+        if (['brick_px', 'cols', 'rows', 'gap', 'poll_ms', 'pad', 'target_bricks'].includes(k)) return [toKey(k), +v];
+        if (['brick_scale'].includes(k)) return [toKey(k), +v];
+        if (['donors', 'embed', 'hud', 'mascot', 'respect_motion'].includes(k)) return [toKey(k), v === '1'];
+        if (['mascot_x', 'mascot_y'].includes(k)) return [toKey(k), v];
+        return [toKey(k), v];
+      }))
+    };
+    CONFIG.palette = 'brand3';
+    CONFIG.brickScale = 1.0;
+
+    function toKey(k) {
+      return ({
+        'sheet_id': 'sheetId', 'sheet': 'sheetName', 'range': 'range',
+        'donors': 'donorsOn', 'donors_sheet': 'donorsSheet', 'donors_range': 'donorsRange', 'donors_sheet_id': 'donorsSheetId', 'donors_header': 'donorsHeader', 'names': 'namesMode',
+        'logo': 'logo', 'cols': 'cols', 'rows': 'rows', 'brick_px': 'brickPx', 'gap': 'gap', 'poll_ms': 'pollMs', 'pad': 'pad', 'palette': 'palette',
+        'embed': 'embed', 'hud': 'hudOn', 'target_bricks': 'targetBricks', 'mascot': 'mascot', 'mascot_src': 'mascotSrc', 'respect_motion': 'respectMotion',
+        'mascot_x': 'mascotX', 'mascot_y': 'mascotY', 'brick_scale': 'brickScale'
+      }[k] || k)
+    }
+    if (CONFIG.pad) document.documentElement.style.setProperty('--pad', CONFIG.pad + 'px');
+    if (CONFIG.grout) document.documentElement.style.setProperty('--grout', CONFIG.grout);
+    if (CONFIG.joint) document.documentElement.style.setProperty('--joint', CONFIG.joint + 'px');
+    if (CONFIG.ghost) document.documentElement.style.setProperty('--ghost', CONFIG.ghost);
+    if (CONFIG.embed) document.body.classList.add('embed');
+    
+    const gauge = document.getElementById('gauge'),
+      maskEl = document.getElementById('mask'),
+      ghostEl = document.getElementById('ghostLogo'),
+      bricksFgEl = document.getElementById('bricksFg'),
+      bricksBgEl = document.getElementById('bricksBg'),
+      alertBox = document.getElementById('logoAlert');
+    const hud = {
+      raised: document.getElementById('hudRaised'), goal: document.getElementById('hudGoal'),
+      pct: document.getElementById('hudPct'), updated: document.getElementById('hudUpdated'),
+      goalLabel: document.getElementById('hudGoalLabel'), box: document.getElementById('hud')
+    };
+    const mascotBox = document.getElementById('mascot'),
+      mascotImg = document.getElementById('mascotImg'),
+      mascotWrap = document.getElementById('mascotWrap');
+    const tip = document.getElementById('tip');
+    const fab = document.getElementById('fab'),
+      drawer = document.getElementById('drawer'),
+      closeDrawer = document.getElementById('closeDrawer'),
+      optMascotOn = document.getElementById('optMascotOn'),
+      optMascotSrc = document.getElementById('optMascotSrc'),
+      optMascotX = document.getElementById('optMascotX'),
+      optMascotY = document.getElementById('optMascotY'),
+      optDonorsOn = document.getElementById('optDonorsOn'),
+      optNamesMode = document.getElementById('optNamesMode'),
+      optHudOn = document.getElementById('optHudOn'),
+      btnRefresh = document.getElementById('btnRefresh'),
+      btnSimulate = document.getElementById('btnSimulate'),
+      btnCopyLink = document.getElementById('btnCopyLink'),
+      btnReset = document.getElementById('btnReset'),
+      dbgDonors = document.getElementById('dbgDonors'),
+      dbgSheet = document.getElementById('dbgSheet'),
+      dbgHeader = document.getElementById('dbgHeader');
+    dbgSheet.textContent = CONFIG.donorsSheet;
+    dbgHeader.textContent = CONFIG.donorsHeader;
+    
+    const paintCanvas = document.createElement('canvas');
+    const pctx = paintCanvas.getContext('2d', { willReadFrequently: true });
+    let logoImg = null, aspectSet = false, bricksFg = [], bricksBg = [], effCols, effRows, lastProgress = 0, lastFilled = 0, donors = [];
+    let firstApplyDone = false;
+    let lastGoalValue = 0, lastRaisedValue = 0;
+
+    function setMaskImage(url) { maskEl.style.setProperty('--mask', `url('${url}')`); }
+    function formatBRL(n) { try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n); } catch { return 'R$ ' + Number(n || 0).toLocaleString('pt-BR'); } }
+    function tweenNumber(el, to, fmt, ms = 600) {
+      const from = Number((el.textContent || '0').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+      const t0 = performance.now();
+      (function f(t) {
+        const k = Math.min(1, (t - t0) / ms);
+        el.textContent = fmt(from + (to - from) * k);
+        if (k < 1) requestAnimationFrame(f)
+      })(t0);
+    }
+    function firstName(n) { if (!n) return ''; const p = n.trim().split(/\s+/); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : ''); }
+    function formatName(n) { if (CONFIG.namesMode === 'off') return ''; if (CONFIG.namesMode === 'full') return n || ''; return firstName(n || ''); }
+    
+    function loadLogo(src) {
+      return new Promise(res => {
+        const im = new Image();
+        im.onload = () => { logoImg = im; ghostEl.src = im.src; setMaskImage(im.src); alertBox.style.display = 'none'; res(true) };
+        im.onerror = () => { alertBox.style.display = 'block'; res(false) };
+        im.src = src + (src.includes('?') ? '&' : '?') + 't=' + Date.now();
+      })
+    }
+    
+    function ensureAspectFromLogo() { if (aspectSet || !logoImg) return; const ar = logoImg.naturalWidth / logoImg.naturalHeight; if (ar > 0) gauge.style.aspectRatio = `${ar} / 1`; aspectSet = true; }
+    
+    const PALETTES = { brand2: ['#0A4AA6', '#F2C035'], brand3: ['#0A4AA6', '#F2C035', '#8B1E1E'] };
+    const hexToRgb = h => { const n = parseInt(h.replace('#', ''), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 } };
+    const dist2 = (c1, c2) => { const dr = c1.r - c2.r, dg = c1.g - c2.g, db = c1.b - c2.b; return dr * dr + dg * dg + db * db };
+    
+    function mapToPalette(r, g, b, name) {
+      const set = PALETTES[name];
+      if (!set) return `rgb(${r},${g},${b})`;
+      let best = set[0], bestD = Infinity, c1 = { r, g, b };
+      for (const h of set) { const c2 = hexToRgb(h); const d = dist2(c1, c2); if (d < bestD) { bestD = d; best = h } }
+      return best
+    }
+    
+    const makeSampler = (data, W, H) => (x, y) => { const xi = Math.max(0, Math.min(W - 1, Math.round(x))), yi = Math.max(0, Math.min(H - 1, Math.round(y))), i = (yi * W + xi) * 4; return [data[i], data[i + 1], data[i + 2], data[i + 3]] };
+    const median = a => { const b = a.slice().sort((m, n) => m - n); return b[Math.floor(b.length / 2)] };
+    
+    function isInsideLogo(sampleAs) {
+      const Amax = Math.max.apply(null, sampleAs);
+      return Amax >= 20;
+    }
+    
+    function darkenHex(hex, amt = 0.15) {
+      const c = hexToRgb(hex);
+      const k = Math.max(0, Math.min(1, 1 - amt));
+      return `rgb(${Math.round(c.r*k)},${Math.round(c.g*k)},${Math.round(c.b*k)})`;
+    }
+    
+    function colorizeBricks() {
+      if (!logoImg) return;
+      const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight;
+      if (!W || !H) return;
+      paintCanvas.width = W;
+      paintCanvas.height = H;
+      pctx.clearRect(0, 0, W, H);
+      const ar = logoImg.naturalWidth / logoImg.naturalHeight;
+      let dw = W, dh = W / ar;
+      if (dh > H) { dh = H; dw = H * ar }
+      const dx = (W - dw) / 2, dy = (H - dh) / 2;
+      pctx.drawImage(logoImg, dx, dy, dw, dh);
+      const buf = pctx.getImageData(0, 0, W, H).data;
+      const samp = makeSampler(buf, W, H);
+      const baseHex = getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim() || '#a35a41';
+      
+      for (let i = 0; i < bricksFg.length; i++) {
+        const bFg = bricksFg[i], bBg = bricksBg[i];
+        const x = bFg._x, y = bFg._y, w = bFg._w, h = bFg._h;
+        const pts = [
+          [x + w / 2, y + h / 2], [x + 1, y + 1], [x + w - 2, y + 1], [x + 1, y + h - 2], [x + w - 2, y + h - 2],
+          [x + w / 2, y + 1], [x + w / 2, y + h - 2], [x + 1, y + h / 2], [x + w - 2, y + h / 2]
+        ];
+        const rs = [], gs = [], bs = [], as = [];
+        for (const [px, py] of pts) { 
+            const d = samp(px, py);
+            rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]);
+        }
+        
+        const fg = bFg.querySelector('.fill'), bg = bBg.querySelector('.fill');
+
+        if (!isInsideLogo(as)) {
+            fg.style.background = 'transparent';
+            const base = hexToRgb(baseHex);
+            bg.style.background = `rgb(${base.r},${base.g},${base.b})`;
+            bg.style.opacity = '1';
+        } else {
+            const r = median(rs), g = median(gs), b = median(bs);
+            const pc = mapToPalette(r, g, b, CONFIG.palette);
+            fg.style.background = darkenHex(pc, 0.12);
+            bg.style.opacity = '0';
+        }
+      }
+    }
+
+    let _orderFg = [], _orderBg = [];
+    function buildOrder(rows, cols) {
+      const of = [], ob = [];
+      for (let r = rows - 1; r >= 0; r--) { 
+        for (let c = 0; c < cols; c++) { 
+          const i = r * cols + c;
+          of.push(bricksFg[i]);
+          ob.push(bricksBg[i]);
+        }
+      }
+      _orderFg = of;
+      _orderBg = ob;
+      assignDonorsToBricks();
+    }
+
+    function layoutBricks() {
+      ensureAspectFromLogo();
+      const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight;
+      if (!W || !H) return;
+      if (CONFIG.targetBricks > 0) {
+        const ar = W / H;
+        const rows = Math.max(12, Math.round(Math.sqrt(CONFIG.targetBricks / (ar * 1.0))));
+        const cols = Math.max(20, Math.round(rows * ar));
+        effCols = cols; effRows = rows;
+      }
+      const cols = (typeof effCols === 'number' && effCols > 0) ? effCols : CONFIG.cols;
+      const rows = (typeof effRows === 'number' && effRows > 0) ? effRows : CONFIG.rows;
+      const gap = CONFIG.gap;
+      let brickW = Math.floor((W - (cols + 1) * gap) / cols);
+      if (brickW < 2) brickW = 2;
+      let offset = Math.floor(brickW / 2);
+      let gridWEven = cols * brickW + (cols + 1) * gap;
+      let gridWOdd = gridWEven + offset;
+      if (gridWOdd > W) { 
+        const extra = gridWOdd - W; 
+        const reduce = Math.ceil(extra / cols);
+        brickW = Math.max(2, brickW - reduce);
+        offset = Math.floor(brickW / 2);
+      }
+      const brickH = Math.max(2, Math.floor((H - (rows + 1) * gap) / rows));
+      const gridWMax = Math.max(gridWEven, gridWOdd);
+      const startXBase = Math.max(gap, Math.floor((W - gridWMax) / 2) + gap);
+      const total = rows * cols;
+      if (bricksFg.length !== total) {
+        bricksFgEl.innerHTML = '';
+        bricksBgEl.innerHTML = '';
+        bricksFg = [];
+        bricksBg = [];
+        const fragFg = document.createDocumentFragment(), fragBg = document.createDocumentFragment();
+        for (let i = 0; i < total; i++) {
+          const f = document.createElement('div');
+          f.className = 'brick';
+          f.dataset.idx = i;
+          const ffill = document.createElement('div');
+          ffill.className = 'fill';
+          f.appendChild(ffill);
+          fragFg.appendChild(f);
+          bricksFg.push(f);
+          const b = document.createElement('div');
+          b.className = 'brick';
+          const bfill = document.createElement('div');
+          bfill.className = 'fill';
+          b.appendChild(bfill);
+          fragBg.appendChild(b);
+          bricksBg.push(b);
+        }
+        bricksFgEl.appendChild(fragFg);
+        bricksBgEl.appendChild(fragBg);
+      }
+      const scale = Math.max(0.6, Math.min(1.0, CONFIG.brickScale || 1.0));
+      let idx = 0;
+      for (let r = 0; r < rows; r++) {
+        const startX = startXBase + (r % 2 ? offset : 0);
+        for (let c = 0; c < cols; c++) {
+          const x = startX + c * (brickW + gap), y = gap + r * (brickH + gap);
+          const F = bricksFg[idx];
+          F.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+          F._x = x; F._y = y; F._w = brickW; F._h = brickH;
+          const B = bricksBg[idx];
+          B.style.cssText = `left:${x}px;top:${y}px;width:${brickW}px;height:${brickH}px; transform:scale(${scale});`;
+          idx++;
+        }
+      }
+      buildOrder(rows, cols);
+      colorizeBricks();
+      applyProgress(lastProgress, true);
+      if (CONFIG.mascot) setMascotByAnchor();
+    }
+
+    function applyProgress(p, skipThrow) {
+      p = Math.max(0, Math.min(1, p || 0));
+      lastProgress = p;
+      if (!firstApplyDone) { document.body.classList.add('no-anim'); }
+      const of = _orderFg, ob = _orderBg, total = of.length;
+      if (!total) return;
+      const filled = Math.floor(p * total), frac = (p * total) - filled;
+      for (let i = 0; i < total; i++) {
+        const fF = of[i].querySelector('.fill'), fB = ob[i].querySelector('.fill');
+        of[i].classList.remove('filled', 'partial'); fF.style.width = '0%';
+        ob[i].classList.remove('filled', 'partial'); fB.style.width = '0%';
+        if (i < filled) { 
+          of[i].classList.add('filled'); fF.style.width = '100%';
+          ob[i].classList.add('filled'); fB.style.width = '100%';
+        }
+      }
+      if (filled < total) {
+        const fF = of[filled].querySelector('.fill'), fB = ob[filled].querySelector('.fill');
+        const percent = Math.round(frac * 100) + '%';
+        of[filled].classList.add('partial'); fF.style.width = percent;
+        ob[filled].classList.add('partial'); fB.style.width = percent;
+      }
+      if (!firstApplyDone) {
+        firstApplyDone = true;
+        requestAnimationFrame(() => document.body.classList.remove('no-anim'));
+      }
+      if (!skipThrow && CONFIG.mascot && filled > lastFilled) {
+        throwBrickTo(of[filled - 1] || of[0]);
+        lastFilled = filled;
+      }
+    }
+
+    function setMascotByAnchor() {
+      if (!CONFIG.mascot) { mascotBox.style.display = 'none'; return; }
+      if (CONFIG.respectMotion && matchMedia('(prefers-reduced-motion: reduce)').matches) { mascotBox.style.display = 'none'; return; }
+      mascotImg.src = CONFIG.mascotSrc;
+      mascotBox.style.display = 'block';
+      mascotWrap.classList.add('idle');
+      const gR = gauge.getBoundingClientRect();
+      const xp = String(CONFIG.mascotX ?? '').toLowerCase().includes('%') ? (parseFloat(CONFIG.mascotX) / 100) * gR.width : parseFloat(CONFIG.mascotX || 0);
+      const yp = String(CONFIG.mascotY ?? '').toLowerCase().includes('%') ? (parseFloat(CONFIG.mascotY) / 100) * gR.height : parseFloat(CONFIG.mascotY || 0);
+      const x = Math.round(xp - 55);
+      const y = Math.round(yp - 60);
+      mascotBox.style.left = x + 'px';
+      mascotBox.style.top = y + 'px';
+    }
+
+    let __throwLock = false;
+    function throwBrickTo(brick) {
+      if (!brick || !firstApplyDone || __throwLock) return;
+      __throwLock = true;
+      const fx = document.createElement('div');
+      fx.className = 'fx-brick';
+      gauge.appendChild(fx);
+      const gR = gauge.getBoundingClientRect(), bR = brick.getBoundingClientRect(), mR = mascotBox.getBoundingClientRect();
+      const sx = mR.left - gR.left + 76, sy = mR.top - gR.top + 78;
+      const tx = bR.left - gR.left + bR.width / 2 - 13, ty = bR.top - gR.top + bR.height / 2 - 7;
+      fx.style.left = sx + 'px';
+      fx.style.top = sy + 'px';
+      fx.style.transition = 'transform 1.3s cubic-bezier(.2,.7,.2,1), opacity 1.3s';
+      fx.style.transform = 'translate(0,0) scale(0.9)';
+      requestAnimationFrame(() => {
+        fx.style.transform = `translate(${Math.round(tx-sx)}px,${Math.round(ty-sy)}px) scale(1.02)`;
+        fx.style.opacity = '1';
+      });
+      setTimeout(() => {
+        fx.style.opacity = '0';
+        setTimeout(() => { fx.remove(); __throwLock = false; }, 320);
+      }, 1300);
+    }
+
+    function assignDonorsToBricks() {
+      const of = _orderFg;
+      for (let i = 0; i < of.length; i++) { of[i]._donor = (donors && donors.length) ? donors[i % donors.length] : null; }
+    }
+
+    let tipTimer = null;
+    bricksFgEl.addEventListener('click', onBrickTap, { passive: true });
+    bricksFgEl.addEventListener('touchstart', onBrickTap, { passive: true });
+    function onBrickTap(e) {
+      const brick = e.target.closest('.brick');
+      if (!brick || !bricksFgEl.contains(brick)) return;
+      const donor = brick._donor;
+      const r = brick.getBoundingClientRect();
+      const hasDonor = !!(CONFIG.donorsOn && donor);
+      const showPersonal = hasDonor && CONFIG.namesMode !== 'off';
+      let displayName = '';
+      if (showPersonal && donor.name) {
+        displayName = (CONFIG.namesMode === 'full') ? (donor.name || '') : firstName(donor.name || '');
+      }
+      const donorTitle = showPersonal && displayName ? `<b>${displayName}</b>` : `<b>Obrigado!</b>`;
+      const showMsg = showPersonal && donor && donor.msg;
+      const html = showMsg ?
+        `${donorTitle}<div>${donor.msg}</div><div class="mini">${donor.value?('Doou '+formatBRL(donor.value)):'Cada tijolo conta 💛'}</div>` :
+        `${donorTitle}<div class="mini">Cada tijolo conta 💛</div>`;
+      tip.innerHTML = html;
+      tip.style.display = 'block';
+      const left = Math.min(Math.max(8, r.left + r.width / 2), innerWidth - 320);
+      const top = Math.max(8, r.top - 12);
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(() => tip.style.display = 'none', 3000);
+      if (CONFIG.mascot) { setMascotByAnchor(); throwBrickTo(brick); }
+    }
+
+    function parseDateCell(cell) {
+      let v = (cell && typeof cell === 'object' && 'v' in cell) ? cell.v : cell;
+      if (v && typeof v === 'object') { if ('f' in v && typeof v.f === 'string') return parseDateCell(v.f); if ('v' in v) return parseDateCell(v.v); }
+      if (!v) return null;
+      if (typeof v === 'string') {
+        const gv = v.match(/Date\((\d+),\s*(\d+),\s*(\d+)/i); if (gv) return new Date(+gv[1], +gv[2], +gv[3]);
+        const iso = v.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/); if (iso) return new Date(+iso[1], +iso[2] - 1, +iso[3]);
+        const br = v.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/); if (br) { const d = +br[1], m = +br[2], y = +br[3] < 100 ? 2000 + +br[3] : +br[3]; return new Date(y, m - 1, d) }
+        return null;
+      }
+      if (typeof v === 'number') { const base = Date.UTC(1899, 11, 30); return new Date(base + v * 86400 * 1000) }
+      return null;
+    }
+
+    async function fetchProgress() {
+      const base = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq`;
+      const params = new URLSearchParams({ tqx: 'out:json', sheet: CONFIG.sheetName, range: CONFIG.range, t: Date.now() + '' });
+      try {
+        const res = await fetch(`${base}?${params}`, { cache: 'no-store' });
+        const txt = await res.text();
+        const m = txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
+        if (!m || !m[1]) { throw new Error('Invalid Gviz response format'); }
+        const data = JSON.parse(m[1]);
+        const rows = data?.table?.rows || [];
+        let raised = 0;
+        const campaigns = [];
+        for (const r of rows) {
+          const label = r.c?.[0]?.v?.toString().trim();
+          if (!label) continue;
+          const value = Number(r.c?.[1]?.v || r.c?.[1]?.f || 0);
+          if (label.toLowerCase() === 'arrecadado') { raised = Number(value || 0); continue; }
+          const start = parseDateCell(r.c?.[2]);
+          const end = parseDateCell(r.c?.[3]);
+          campaigns.push({ label, goal: Number(value || 0), start, end });
+        }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let active = campaigns.find(c => c.start && c.end && today >= c.start && today <= c.end);
+        if (!active) active = campaigns.find(c => c.goal > 0) || { label: 'Meta', goal: 0 };
+        const goal = Number(active.goal || 0);
+        const pRaw = goal > 0 ? (raised / goal) : 0;
+        const p = Math.max(0, Math.min(1, pRaw));
+        lastGoalValue = goal;
+        lastRaisedValue = raised;
+        applyProgress(p);
+        tweenNumber(hud.raised, raised, n => formatBRL(n));
+        tweenNumber(hud.goal, goal, n => formatBRL(n));
+        hud.goalLabel.textContent = active.label || 'Meta';
+        hud.pct.textContent = (pRaw * 100).toFixed(1).replace('.', ',') + '%';
+        hud.updated.textContent = 'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        try { localStorage.setItem('tj:last', JSON.stringify({ p, raised, goal, ts: Date.now() })); } catch {}
+        return { ok: true, raised, goal, p };
+      } catch (e) {
+        console.error('Erro ao buscar planilha:', e);
+        const last = localStorage.getItem('tj:last');
+        if (last) {
+          const { p, raised, goal, ts } = JSON.parse(last);
+          applyProgress(p);
+          hud.raised.textContent = formatBRL(raised);
+          hud.goal.textContent = formatBRL(goal);
+          hud.pct.textContent = (p * 100).toFixed(1).replace('.', ',') + '%';
+          hud.updated.textContent = 'Offline — último: ' + new Date(ts).toLocaleString('pt-BR');
+        } else if (hud.updated.textContent === '—') { hud.updated.textContent = '(Erro na planilha)' }
+        return { ok: false };
+      }
+    }
+
+    const canon = s => (s || '').toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+
+    async function fetchDonors() {
+      if (!CONFIG.donorsOn) { donors = []; assignDonorsToBricks(); dbgDonors.textContent = 'desligado'; return; }
+      try {
+        const base = `https://docs.google.com/spreadsheets/d/${(CONFIG.donorsSheetId||CONFIG.sheetId)}/gviz/tq`;
+        const params = new URLSearchParams({ tqx: 'out:json', sheet: CONFIG.donorsSheet, range: CONFIG.donorsRange, t: Date.now() + '' });
+        const res = await fetch(`${base}?${params}`, { cache: 'no-store' });
+        const txt = await res.text();
+        const m = txt.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
+        if (!m || !m[1]) { throw new Error('Invalid Gviz response format'); }
+        const data = JSON.parse(m[1]);
+        const cols = (data?.table?.cols || []).map(c => (c.label || '').toString());
+        const rows = data?.table?.rows || [];
+        let header = cols;
+        let headerFromRow = false;
+        if (!header.some(h => (h || '').trim().length)) {
+          const r0 = rows[0];
+          if (r0 && r0.c) {
+            header = r0.c.map(c => (c?.v ?? c?.f ?? '').toString());
+            headerFromRow = true;
+          }
+        }
+        const wanted = canon(CONFIG.donorsHeader);
+        const headerCanon = header.map(canon);
+        let colIdx = headerCanon.findIndex(h => h === wanted);
+        if (colIdx === -1) colIdx = headerCanon.findIndex(h => h.includes(wanted) || wanted.includes(h));
+        const nameCandidates = ['nome', 'nome completo', 'name'];
+        let nameIdx = headerCanon.findIndex(hc => nameCandidates.some(cand => hc === cand || hc.startsWith(cand + ' ')));
+        if (nameIdx === -1) {
+          nameIdx = headerCanon.findIndex(hc => /\b(nome|name)\b/.test(hc) && !/\b(email|e[- ]?mail|telefone|celular|whats|whatsapp)\b/.test(hc));
+        }
+        if (nameIdx < 0) nameIdx = -1;
+        if (colIdx === -1) {
+          donors = [];
+          dbgDonors.textContent = 'cabeçalho não encontrado';
+        } else {
+          const startIdx = headerFromRow ? 1 : 0;
+          const out = [];
+          for (let i = startIdx; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r || !r.c) continue;
+            const cell = r.c[colIdx];
+            const v = (cell?.v ?? cell?.f ?? '').toString().trim();
+            if (v) {
+              let name = '';
+              if (nameIdx >= 0 && r.c[nameIdx]) {
+                name = (r.c[nameIdx]?.v ?? r.c[nameIdx]?.f ?? '').toString().trim();
+              }
+              name = (name || '').replace(/\s+/g, ' ').trim();
+              out.push({ name, msg: v, value: 0 });
+            }
+          }
+          donors = out;
+          dbgDonors.textContent = 'carregados: ' + donors.length;
+        }
+        assignDonorsToBricks();
+        return { ok: true, count: donors.length };
+      } catch (e) {
+        console.warn('Doadores: falha ao ler', e);
+        donors = [];
+        assignDonorsToBricks();
+        dbgDonors.textContent = 'erro/permissão';
+        return { ok: false };
+      }
+    }
+
+    function syncControls() {
+      optMascotOn.checked = CONFIG.mascot;
+      optMascotSrc.value = CONFIG.mascotSrc;
+      optMascotX.value = parseFloat(String(CONFIG.mascotX).replace('%', '')) || 90;
+      optMascotY.value = parseFloat(String(CONFIG.mascotY).replace('%', '')) || 75;
+      optDonorsOn.checked = CONFIG.donorsOn;
+      optNamesMode.value = CONFIG.namesMode;
+      optHudOn.checked = !CONFIG.hudOff;
+    }
+    function saveSettings() { const copy = { ...CONFIG }; localStorage.setItem('tj:settings', JSON.stringify(copy)); }
+    function applySettings() {
+      CONFIG.mascot = optMascotOn.checked;
+      CONFIG.mascotSrc = optMascotSrc.value;
+      CONFIG.mascotX = (optMascotX.value === '' ? '90' : optMascotX.value) + (String(optMascotX.value).includes('%') ? '' : '%');
+      CONFIG.mascotY = (optMascotY.value === '' ? '75' : optMascotY.value) + (String(optMascotY.value).includes('%') ? '' : '%');
+      CONFIG.donorsOn = optDonorsOn.checked;
+      CONFIG.namesMode = optNamesMode.value;
+      CONFIG.hudOff = !optHudOn.checked;
+      effCols = undefined;
+      effRows = undefined;
+      if (CONFIG.hudOff) hud.box.classList.add('hidden');
+      else hud.box.classList.remove('hidden');
+      setMascotByAnchor();
+      colorizeBricks();
+      layoutBricks();
+      fetchDonors();
+      saveSettings();
+    }
+    optMascotOn.onchange = applySettings;
+    optMascotSrc.onchange = applySettings;
+    optMascotX.oninput = () => { applySettings(); };
+    optMascotY.oninput = () => { applySettings(); };
+    optDonorsOn.onchange = () => { applySettings(); };
+    optNamesMode.onchange = applySettings;
+    optHudOn.onchange = applySettings;
+    
+    let pollId = null;
+    function startPolling() {
+      if (pollId) clearInterval(pollId);
+      pollId = setInterval(fetchProgress, CONFIG.pollMs);
+    }
+    
+    btnRefresh.onclick = () => {
+      fetchProgress().then(() => {
+        btnRefresh.textContent = 'Atualizado ✔';
+        setTimeout(() => btnRefresh.textContent = 'Atualizar agora', 1200);
+      });
+      fetchDonors();
+    };
+    
+    btnSimulate.onclick = () => {
+      if (pollId) { clearInterval(pollId); pollId = null; }
+      const p = 1;
+      applyProgress(p);
+      if (lastGoalValue && lastGoalValue > 0) {
+        hud.pct.textContent = '100,0%';
+        tweenNumber(hud.raised, lastGoalValue, n => formatBRL(n));
+      } else {
+        hud.pct.textContent = '100,0%';
+      }
+      setTimeout(() => startPolling(), 6000);
+    };
+    
+    btnCopyLink.onclick = () => {
+      const u = new URL(location.href);
+      const params = new URLSearchParams();
+      if (CONFIG.donorsOn) params.set('donors', '1');
+      if (CONFIG.namesMode !== DEFAULTS.namesMode) params.set('names', CONFIG.namesMode);
+      if (CONFIG.hudOff) params.set('hud', '0');
+      if (CONFIG.donorsSheetId !== DEFAULTS.donorsSheetId) params.set('donors_sheet_id', CONFIG.donorsSheetId);
+      if (CONFIG.donorsSheet !== DEFAULTS.donorsSheet) params.set('donors_sheet', CONFIG.donorsSheet);
+      if (CONFIG.donorsHeader !== DEFAULTS.donorsHeader) params.set('donors_header', CONFIG.donorsHeader);
+      if (CONFIG.mascotX !== DEFAULTS.mascotX) params.set('mascot_x', CONFIG.mascotX);
+      if (CONFIG.mascotY !== DEFAULTS.mascotY) params.set('mascot_y', CONFIG.mascotY);
+      u.search = params.toString();
+      navigator.clipboard.writeText(u.toString()).then(() => { btnCopyLink.textContent = 'Link copiado!'; setTimeout(() => btnCopyLink.textContent = 'Copiar link com estas opções', 1800) });
+    };
+    
+    btnReset.onclick = () => {
+      Object.assign(CONFIG, DEFAULTS);
+      syncControls();
+      applySettings();
+    };
+    
+    fab.onclick = () => drawer.classList.add('open');
+    closeDrawer.onclick = () => drawer.classList.remove('open');
+    
+    if (qs.get('debug') !== '1') {
+      document.querySelectorAll('.debug-row').forEach(el => el.style.display = 'none');
+    }
+    
+    document.body.classList.add('no-anim');
+    syncControls();
+    if (CONFIG.hudOff) hud.box.classList.add('hidden');
+    
+    const ro = new ResizeObserver(() => { layoutBricks(); if (CONFIG.mascot) setMascotByAnchor(); });
+    ro.observe(gauge);
+    window.addEventListener('orientationchange', () => setTimeout(layoutBricks, 150));
+    
+    loadLogo(CONFIG.logo).then(() => { 
+      ensureAspectFromLogo();
+      layoutBricks();
+      setMascotByAnchor(); 
+    });
+    fetchDonors();
+    fetchProgress().then(() => startPolling());
+  })();
+  </script>
 </body>
 </html>
-Limpe e consolide o código para mim, sem mudar nada a mais que não seja estritamente necessário.
