@@ -178,8 +178,8 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       donorsRange: 'A1:Z10000',
       namesMode: 'first',
       logo: 'logo.png',
-      cols: 200, // Densidade padrão
-      rows: 120, // Densidade padrão
+      cols: 200, 
+      rows: 120,
       brickPx: 0,
       targetBricks: 0,
       gap: 1,
@@ -311,18 +311,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
     
     const makeSampler = (data, W, H) => (x, y) => { const xi = Math.max(0, Math.min(W - 1, Math.round(x))), yi = Math.max(0, Math.min(H - 1, Math.round(y))), i = (yi * W + xi) * 4; return [data[i], data[i + 1], data[i + 2], data[i + 3]] };
     const median = a => { const b = a.slice().sort((m, n) => m - n); return b[Math.floor(b.length / 2)] };
-    
-    function isInsideLogo(sampleAs) {
-      const Amax = Math.max.apply(null, sampleAs);
-      return Amax >= 20;
-    }
-    
-    function darkenHex(hex, amt = 0.15) {
-      const c = hexToRgb(hex);
-      const k = Math.max(0, Math.min(1, 1 - amt));
-      return `rgb(${Math.round(c.r*k)},${Math.round(c.g*k)},${Math.round(c.b*k)})`;
-    }
-    
+        
     function colorizeBricks() {
       if (!logoImg) return;
       const W = bricksFgEl.clientWidth, H = bricksFgEl.clientHeight;
@@ -347,6 +336,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       const buf = pctx.getImageData(0, 0, W, H).data;
       const samp = makeSampler(buf, W, H);
       const baseHex = getComputedStyle(document.documentElement).getPropertyValue('--brick-bg-color').trim() || '#a35a41';
+      const baseRgb = hexToRgb(baseHex);
       
       for (let i = 0; i < bricksFg.length; i++) {
         const brick = bricksFg[i];
@@ -354,27 +344,40 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
         
         const bFg = brick, bBg = bricksBg[i];
         const x = bFg._x, y = bFg._y, w = bFg._w, h = bFg._h;
-        const pts = [
-          [x + w / 2, y + h / 2], [x + 1, y + 1], [x + w - 2, y + 1], [x + 1, y + h - 2], [x + w - 2, y + h - 2],
-          [x + w / 2, y + 1], [x + w / 2, y + h - 2], [x + 1, y + h / 2], [x + w - 2, y + h / 2]
-        ];
-        const rs = [], gs = [], bs = [], as = [];
-        for (const [px, py] of pts) { 
-            const d = samp(px, py);
-            rs.push(d[0]); gs.push(d[1]); bs.push(d[2]); as.push(d[3]);
+        
+        const samplePoints = [];
+        const numSamples = 5;
+        for (let sx = 0; sx < numSamples; sx++) {
+            for (let sy = 0; sy < numSamples; sy++) {
+                const px = x + (w / (numSamples + 1)) * (sx + 1);
+                const py = y + (h / (numSamples + 1)) * (sy + 1);
+                samplePoints.push(samp(px, py));
+            }
         }
         
+        const rs = [], gs = [], bs = [], as = [];
+        for (const pt of samplePoints) { 
+            rs.push(pt[0]); gs.push(pt[1]); bs.push(pt[2]); as.push(pt[3]);
+        }
+        
+        const avgAlpha = as.reduce((sum, val) => sum + val, 0) / as.length;
         const fg = bFg.querySelector('.fill'), bg = bBg.querySelector('.fill');
 
-        if (!isInsideLogo(as)) {
+        if (avgAlpha < 20) {
             fg.style.background = 'transparent';
-            const base = hexToRgb(baseHex);
-            bg.style.background = `rgb(${base.r},${base.g},${base.b})`;
+            bg.style.background = `rgb(${baseRgb.r},${baseRgb.g},${baseRgb.b})`;
             bg.style.opacity = '1';
         } else {
             const r = median(rs), g = median(gs), b = median(bs);
             const pc = mapToPalette(r, g, b, CONFIG.palette);
-            fg.style.background = darkenHex(pc, 0.12);
+            const pcRgb = hexToRgb(pc);
+
+            const mixRatio = avgAlpha / 255;
+            const mixedR = Math.round(pcRgb.r * mixRatio + baseRgb.r * (1 - mixRatio));
+            const mixedG = Math.round(pcRgb.g * mixRatio + baseRgb.g * (1 - mixRatio));
+            const mixedB = Math.round(pcRgb.b * mixRatio + baseRgb.b * (1 - mixRatio));
+
+            fg.style.background = `rgb(${mixedR},${mixedG},${mixedB})`;
             bg.style.opacity = '0';
         }
       }
@@ -386,12 +389,13 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
         _orderBg = [];
         const rows = effRows;
         const cols = effCols;
+        if (!rows || !cols) return;
         for (let r = rows - 1; r >= 0; r--) {
             const isStaggered = r % 2 !== 0;
             const numColsInRow = cols + (isStaggered ? 1 : 0);
             for (let c = 0; c < numColsInRow; c++) {
-                const i = brickMap[r][c];
-                if (i !== undefined) {
+                if (brickMap[r] && brickMap[r][c] !== undefined) {
+                    const i = brickMap[r][c];
                     _orderFg.push(bricksFg[i]);
                     _orderBg.push(bricksBg[i]);
                 }
@@ -484,6 +488,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
       if (!total) return;
       const filled = Math.floor(p * total), frac = (p * total) - filled;
       for (let i = 0; i < total; i++) {
+        if (!of[i] || !ob[i]) continue;
         const fF = of[i].querySelector('.fill'), fB = ob[i].querySelector('.fill');
         of[i].classList.remove('filled', 'partial'); fF.style.width = '0%';
         ob[i].classList.remove('filled', 'partial'); fB.style.width = '0%';
@@ -492,7 +497,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
           ob[i].classList.add('filled'); fB.style.width = '100%';
         }
       }
-      if (filled < total) {
+      if (filled < total && of[filled]) {
         const fF = of[filled].querySelector('.fill'), fB = ob[filled].querySelector('.fill');
         const percent = Math.round(frac * 100) + '%';
         of[filled].classList.add('partial'); fF.style.width = percent;
