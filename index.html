@@ -410,7 +410,7 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
         if (!W || !H) return;
 
         const gap = CONFIG.gap;
-        const targetBrickWidth = 5;
+        const targetBrickWidth = 5; 
         const targetBrickHeight = 3;
 
         const calculatedCols = Math.floor((W - gap) / (targetBrickWidth + gap));
@@ -445,22 +445,27 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
         for (let r = 0; r < effRows; r++) {
             brickMap[r] = [];
             const isStaggered = r % 2 !== 0;
-            const startX = isStaggered ? (-offset_float + gap) : gap;
+            const startX = isStaggered ? (-offset_float + gap) : gap; 
             const numColsInRow = effCols + (isStaggered ? 1 : 0);
 
             for (let c = 0; c < numColsInRow; c++) {
                 if (idx >= bricksFg.length) break;
                 
-                // CORREÇÃO: Arredondar todas as posições e tamanhos para evitar o "checkerboard"
-                const x = Math.round(startX + c * (brickW_float + gap));
-                const y = Math.round(gap + r * (brickH_float + gap));
-                const w = Math.round(brickW_float);
-                const h = Math.round(brickH_float);
+                const x_float = startX + c * (brickW_float + gap);
+                const y_float = gap + r * (brickH_float + gap);
+
+                // ** A CORREÇÃO FINAL **
+                // Arredondar posições e adicionar 1 pixel ao tamanho para sobreposição
+                const x = Math.round(x_float);
+                const y = Math.round(y_float);
+                const w = Math.round(brickW_float) + 1; // Sobreposição
+                const h = Math.round(brickH_float) + 1; // Sobreposição
 
                 const F = bricksFg[idx];
                 F.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
                 F.style.display = '';
-                F._x = x; F._y = y; F._w = w; F._h = h; // Armazenar valores arredondados
+                // Armazenar as coordenadas lógicas (não sobrepostas) para a amostragem de cor
+                F._x = x_float; F._y = y_float; F._w = brickW_float; F._h = brickH_float; 
                 F.dataset.idx = idx;
                 
                 const B = bricksBg[idx];
