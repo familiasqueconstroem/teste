@@ -410,8 +410,8 @@ select, input[type="text"], input[type="number"] { font: inherit; padding: 6px 8
         if (!W || !H) return;
 
         const gap = CONFIG.gap;
-        const idealBrickWidth = 10;
-        const idealBrickHeight = 6;
+        const idealBrickWidth = 5;  // TIJOLOS MENORES PARA MAIS DETALHE
+        const idealBrickHeight = 3; // TIJOLOS MENORES PARA MAIS DETALHE
         
         const cols = Math.floor((W - gap) / (idealBrickWidth + gap));
         const rows = Math.floor((H - gap) / (idealBrickHeight + gap));
